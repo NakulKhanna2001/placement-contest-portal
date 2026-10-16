@@ -45,7 +45,7 @@ Initial connection/wake-up time and network latency still exist. Use `npm run bu
 
 ## Checks
 
-- **43 Vitest tests pass**, including cache serialization/date restoration, admin-view authorization and valid solve filtering, and non-interactive accessible skeleton markup.
+- **42 Vitest tests pass** after the subsequent no-cron Hobby update, including cache serialization/date restoration, admin-view authorization, submission-triggered archiving, and non-interactive accessible skeleton markup. The retired cron endpoint's test was removed with that feature.
 - **8 Playwright checks pass** across desktop and mobile: branded pages/navigation, delayed-request feedback, keyboard access, reduced motion, skeleton layout, and horizontal overflow.
 - TypeScript, ESLint, and the production build pass.
 - Desktop/mobile screenshots and the skeleton rendering were inspected.

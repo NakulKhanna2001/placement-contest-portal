@@ -5,7 +5,7 @@ A portal for running a **weekly Saturday coding contest** for college placement 
 The interface uses a persistent workspace, responsive navigation, and page-specific skeletons. See [UI and navigation notes](docs/ui-performance.md) for the design, performance changes, and measured results.
 
 > **Status: v1 implemented and locally verified.**
-> Includes the student portal, account verification, contest scheduling, live leaderboard, admin grants/rescoring, reports, and results. **Managed Neon Postgres and real Google OAuth are configured and verified locally**, with owner-only access as requested. See the [connected environment](docs/environment-setup.md), [Setup](#setup), and the [implementation report](HANDOFF.implementation-report.md).
+> Includes the student portal, account verification, contest scheduling, live leaderboard, admin grants/rescoring, reports, and results. **Vercel Hobby compatible: no cron jobs.** Accepted records are saved when a student submits a link. Owner-only Google access is retained for initial testing. See the [connected environment](docs/environment-setup.md), [Setup](#setup), and the [implementation report](HANDOFF.implementation-report.md).
 
 ## How a contest works
 
@@ -47,7 +47,7 @@ Maximum score is 63 base, or 94.5 if every solve earns the bonus.
 
 ## Architecture in one paragraph
 
-Business rules are small pure modules (`link`, `scoring`, `ranking`) plus database-backed services (`contest`, `snapshotter`, `submission-checker`, `grants`, `reports`, `leaderboard`). `leetcode-client` is the only module that knows LeetCode's API shape, so a change on their side touches one file. A background **snapshot** job saves each linked student's recent accepted submission IDs every ~5 minutes, because LeetCode only returns the last 20; a submitted link is checked against that archive first, then a live fetch.
+Business rules are small pure modules (`link`, `scoring`, `ranking`) plus database-backed services (`contest`, `submission-checker`, `grants`, `reports`, `leaderboard`). `leetcode-client` isolates LeetCode's API shape. When a student submits a link, the checker searches their saved accepted records first. If absent, it fetches that student's latest 20 accepted submissions once, archives the list, and verifies the submitted ID. Later links can reuse those records. **There is no recurring scheduler or background polling of students.**
 
 ## Setup
 
@@ -70,7 +70,6 @@ Open **http://localhost:3000**. This workspace now has a private `.env.local` co
 | `ALLOWED_EMAIL_DOMAIN` | Your exact college domain, e.g. `college.edu`; empty for owner-only access |
 | `ALLOWED_EMAILS` | Optional comma-separated exact email allowlist; currently just the owner |
 | `ADMIN_EMAILS` | Comma-separated administrator emails that also satisfy the access policy |
-| `CRON_SECRET` | A separate random secret for the snapshot scheduler |
 
 Generate secrets with `openssl rand -base64 32`. No `.env*` files belong in Git.
 
@@ -86,7 +85,7 @@ npm run dev
 3. As an administrator, visit `/admin` to schedule or draft a contest, manage grants, review reports, and inspect the audit trail.
 4. Students use `/` during a contest and `/results` afterward.
 
-The scheduler is configured in `vercel.json` for every five minutes. Use a hosting plan supporting that frequency; see the [runbook](docs/runbook.md) for deployment details.
+`vercel.json` uses the Next.js preset and the `iad1` region near the Neon database. It defines **zero cron jobs** and works on Vercel Hobby. See the [runbook](docs/runbook.md) for deployment details.
 
 ### Fast local preview
 
@@ -121,7 +120,7 @@ GitHub Actions runs the automated checks in `.github/workflows/ci.yml`. For an a
 - `src/lib/`: pure scoring, parsing, ranking, defaults, and validation
 - `src/db/`, `drizzle/`: Postgres schema, migrations, production/test database adapters
 - `src/leetcode/`: timeout-bounded LeetCode adapter
-- `src/services/`: account linking, contests, snapshots, verification, leaderboard, grants, reports, and audit
+- `src/services/`: account linking, contests, submission-triggered archiving/verification, leaderboard, grants, reports, and audit
 - `src/app/`: responsive student/admin pages and authenticated API routes
 - `tests/`: rule, database, service, route, simulation, and browser tests
 
@@ -130,9 +129,9 @@ For further development, read the [implementation report](HANDOFF.implementation
 ## Known risks
 
 - **LeetCode's GraphQL endpoint is unofficial.** It may change or throttle. It is isolated in one module, and admin grants are the fallback. Run `npm run leetcode:smoke -- USERNAME` before each contest.
-- **The recent-accepted list is capped at 20.** The snapshot archive exists for this reason. Students must link their account before the contest starts. Snapshots also run during grace to capture final-minute submissions.
-- **The load test at unlock spikes and the volunteer dry run need a deployed preview.** Confirm scheduler throughput at the expected student count before launch.
-- **Local Google login and the managed Postgres connection are verified.** Public deployment, its callback hostname, and hosted cron still need setup. Student access remains closed until the owner supplies a college domain and opens the Google audience appropriately.
+- **The recent-accepted list is capped at 20.** Submit links promptly. Without periodic snapshots, an acceptance that has already scrolled off the public list and was never saved cannot be verified automatically; an admin grant with evidence is the fallback. The link deadline and acceptance-window rules are unchanged.
+- **Run the preview load check and volunteer dry run before opening student access.** Normal HTTP/function/database usage still counts toward the hosting plan's limits.
+- **Google access is initially owner-only.** Supply the college domain and adjust the Google audience before opening it to students.
 
 ## Contributing
 

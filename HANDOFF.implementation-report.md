@@ -7,9 +7,17 @@ Date: 2026-10-15
 - Handoff: [`HANDOFF.md`](HANDOFF.md)
 - Implementation plan: [`docs/superpowers/plans/2026-10-15-weekly-contest-portal.md`](docs/superpowers/plans/2026-10-15-weekly-contest-portal.md)
 - Source of truth: [`docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md`](docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md)
-- **Status:** v1 implemented with the NST LC Grind interface and navigation update; managed Postgres and real Google OAuth are configured and verified locally. **43 automated tests and 8 browser checks pass.** Public deployment, hosted scheduler verification, preview load, and volunteer dry-run checks remain.
+- **Status:** v1 implemented with the NST LC Grind interface and navigation update. The owner approved a no-cron Vercel Hobby deployment at `https://nst-lc-grind.vercel.app`. Verification/archiving is now submission-triggered. **42 automated tests pass** after removal of the obsolete cron authorization test; public-host checks are recorded in the deployment follow-up below.
 
 The original handoff and plan have been preserved as approved historical documents. Their “no application code” state and unchecked tasks no longer describe the current repository. Begin future work by inspecting this report and the actual code, rather than re-running the scaffold steps.
+
+## Vercel Hobby / no-cron update (owner-approved 2026-10-16)
+
+The owner explicitly requested removal of scheduled polling to use Vercel Hobby. This supersedes the original plan's five-minute snapshot decision. `vercel.json` now has no cron entries; `/api/cron/snapshot` and the background snapshot worker are removed. `CRON_SECRET` is not required.
+
+The existing checker already fetches and archives the submitting student's entire recent accepted list on an archive miss. Tests now exercise that behavior directly, including the 50-student simulation: a student submits one link per batch, which saves other records for later verification. There are no scheduled requests for other users. Earlier archives, acceptance-time scoring, cooldowns, and the contest-end grace deadline still apply. Students must submit promptly; an acceptance that disappeared before it was ever archived needs admin review.
+
+The existing Vercel `nst-lc-grind` project is on Hobby, with Node 24, Next.js, and `iad1` near Neon. Production environment values are stored privately in Vercel, the canonical auth URL is `https://nst-lc-grind.vercel.app`, and the Google client includes that origin/callback alongside localhost. The unused legacy `next_snapshot_at` column is retained, so no new migration is needed. See `docs/environment-setup.md` for the current hosting configuration.
 
 ## Environment setup follow-up
 
@@ -43,7 +51,7 @@ The owner then requested a simpler, more user-friendly UI. The current design us
 - Draft/published contest scheduling, configurable batch count and bonus/grace, enforced 2E/1M/1H composition, duplicate-problem rejection, and transactionally serialized scheduling/overlap checks.
 - Inclusive one-hour windows, 2/5/12 points, default inclusive 15-minute 1.5× bonus, one-decimal rounding, shared ranks for exact ties, and disqualification filtering.
 - Archive-first numeric-ID verification, live fallback, earliest-known valid solve selection, correct out-of-order link handling, deadline/cooldown enforcement, and explicit logging with the injected clock.
-- Protected five-minute snapshot cron, four bounded upstream workers, atomic per-user scheduling claims, failure isolation, and a grace-period final capture.
+- Submission-triggered archiving with no scheduled jobs; archived records can be reused during grace without another upstream request.
 - Admin screens for individual/bulk evidence-backed grants, revokes, re-grants, rescoring, draft publication, report review, and audit inspection.
 - Report deduplication, strict target/contest/problem scoping, transactional moderation/audit, and retained revoked/disqualified solve records.
 - Production migrations, in-memory migration tests, full contest simulation, HTTP authorization tests, public browser smoke checks, CI, a preview load utility, and a contest-day runbook.
@@ -56,7 +64,7 @@ The owner then requested a simpler, more user-friendly UI. The current design us
 | Pure rules/contracts | `src/lib/config.ts`, `types.ts`, `link.ts`, `scoring.ts`, `ranking.ts`, `auth-rules.ts` (including owner allowlist), `validation.ts`, `errors.ts`, `http.ts` |
 | Database | `src/db/schema.ts`, `index.ts`, `test-db.ts`, `drizzle.config.ts`, `drizzle/0000_amused_brother_voodoo.sql`, migration metadata |
 | Auth and external integration | `src/auth.ts`, `src/leetcode/client.ts`, `src/services/verification.ts`, `scripts/leetcode-smoke.ts` |
-| Contest services | `src/services/contest.ts`, `snapshotter.ts`, `submission-checker.ts`, `leaderboard.ts`, `cached-board.ts` |
+| Contest services | `src/services/contest.ts`, `submission-checker.ts`, `leaderboard.ts`, `cached-board.ts` |
 | Moderation/admin services | `src/services/audit.ts`, `grants.ts`, `reports.ts` |
 | HTTP and pages | `src/app/**`, including admin/account/results forms, student submission form, shared API form, live board, loading/error/not-found views, and global styles |
 | Runtime/CI | `vercel.json`, `.github/workflows/ci.yml`, `scripts/load-preview.mjs` |
@@ -73,7 +81,7 @@ The owner then requested a simpler, more user-friendly UI. The current design us
 6. **`now` is required for linking, revoking, rescoring, and audit writes**, extending the plan's injected-clock convention. Auth/session typing avoids `any` casts; Auth.js's default string-ID intersection is handled when assigning the numeric portal ID.
 7. **Earliest valid acceptance wins**, including archive/live records earlier than the pasted valid submission. Earlier links can improve an existing valid solve; later links do not double-score. Students cannot restore revoked solves.
 8. **Accounts must be verified by contest start**, matching the spec's archive prerequisite. Late verification prepares the student for subsequent contests rather than retroactively changing the archive identity.
-9. **Snapshots continue through grace**, so final-minute acceptances have a final archive opportunity. Per-user claims include a small deterministic timing offset; four workers limit request fan-out. The five-minute cron remains the cadence.
+9. **Scheduled snapshots were originally implemented, then removed by owner request** for Vercel Hobby. On-submit lookups still archive all returned accepted records. No scheduled worker runs during the contest or grace.
 10. **Reports are constrained to actual solve records** in the reported contest, and a problem-specific report cannot revoke another problem. Both target and contest are checked again during moderation.
 11. **UI goes beyond minimal plan placeholders:** structured scheduling, working grant/revoke/rescore/report controls, audit viewer, results index, responsive styling, and explicit network/error states.
 12. **No `.env.example` is created.** The repository instructions prohibit committing `.env*` files; the README documents every variable instead. Secrets are supplied privately by the operator.
@@ -87,7 +95,7 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 
 | Command/check | Result |
 |---|---|
-| `npm test` | **PASS: 43 tests in 12 files.** Includes clean migrations, ownership, validation, owner-only allowlist, race cases, rollback, authorization, moderation, 50 students across all three batches, cached dates, admin overview reads, and skeleton semantics. |
+| `npm test` | **PASS: 42 tests in 12 files.** Includes clean migrations, ownership, validation, owner-only allowlist, race cases, rollback, authorization, moderation, submission-triggered archives for 50 students across three batches, cached dates, admin overview reads, and skeleton semantics. |
 | `npm run typecheck` | **PASS** |
 | `npm run lint` | **PASS** |
 | `npm run build` | **PASS**, production Next.js build with all application/API routes |
@@ -100,7 +108,7 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 | Full `npm audit` | **9 development-only transitive advisories** in ESLint globbing and Drizzle CLI dependencies; compatible upstream remediation still pending. Breaking forced downgrades were not applied. |
 | Managed Postgres `npm run db:migrate` | **PASS** on the new dedicated Neon database; independent SQL inspection confirmed ten tables and one applied migration. |
 | Real Google OAuth callback and signed-in browser walkthrough | **PASS** at `localhost:3000`: Google account selection/consent, callback, persisted admin user, account/admin pages, authenticated session/admin API, and anonymous denial. Repeat on the eventual public hostname. |
-| Hosted cron, preview load, volunteer dry run | **NOT RUN**: needs a deployed environment and participants; procedure and load utility are supplied. |
+| Hosted cron | **NOT APPLICABLE**: removed for Hobby. Preview load and the volunteer dry run remain operator launch checks. |
 | GitHub Actions execution | Workflow authored; **NOT RUN remotely** in this session |
 
 ### Acceptance-criteria traceability
@@ -113,13 +121,13 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 | Domain/owner-restricted auth (7) | `src/auth.ts`, `src/lib/auth-rules.ts`, Auth.js route | Domain/allowlist tests, route auth guards, and successful real owner Google sign-in |
 | Ownership (8) | `src/services/verification.ts`, `/account`, `/api/link` | Token, duplicate username/case, no token, immutable link tests |
 | Time-gated scheduling (9) | `src/services/contest.ts`, student/admin pages | Before/exact unlock, draft privacy, batch validation, overlaps, inclusive grace tests |
-| Snapshots (10) | `src/services/snapshotter.ts`, cron route/schedule | Idempotence, error isolation, idle time, 50-user capture; missing/wrong cron-secret tests |
+| Archive capture (replaces task 10) | `src/services/submission-checker.ts` | One student's link saves their list; another archived link verifies during an outage without an extra request; 50-user simulation uses only submitted links |
 | Submission verification (11) | `src/services/submission-checker.ts`, `/api/submit` | Archive-only grace, wrong ID/problem/window, future timestamp, upstream failure, earliest-wins, concurrency tests |
 | Live rankings (12) | leaderboard services/API, `live-board.tsx` | Correct filtering/names/ranks; 5-second cache and 12-second client polling inspected |
 | Manual/bulk grants, revoke, rescore/audit (13) | grants service/admin endpoint/forms | Grants, outside-window rejection, authorization, duplicate, re-grant, score repair, audit/rollback tests |
 | Reports and review (14) | reports service/endpoints/forms | Timing/proof/duplicate checks; cross-contest prevention; revoke/DQ/dismiss; already-reviewed rejection; in-flight DQ race |
 | Admin scheduling/results (15) | `/admin`, `/results`, `/results/[contestId]` | Publish/audit tests, gated queries, typecheck/build; authenticated admin page/forms/API verified against real services |
-| Hardening/dry run (16) | tests, CI, `docs/runbook.md`, load script | 43 local tests and 8 browser checks pass; public-launch steps documented |
+| Hardening/dry run (16) | tests, CI, `docs/runbook.md`, load script | 42 local tests after cron removal; browser regression coverage and public-launch steps documented |
 
 ## Self-review findings and repairs
 
@@ -140,11 +148,11 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 
 1. Supply the college domain and adjust the Google audience/publishing settings when opening student access; current access is intentionally owner-only.
 2. Deploy publicly, supply private environment settings there, and register/verify the deployment's HTTPS Google callback. Local real login and managed Postgres are already verified.
-3. Configure the five-minute hosted snapshot scheduler and inspect completion/failure counts at expected scale.
+3. Monitor submit-endpoint latency, LeetCode lookup failures, and free-plan usage. No scheduler setup is required.
 4. Run the authenticated preview load tool and volunteer dry run described in `docs/runbook.md`, including real student LeetCode linking and contest participation.
 5. Resolve owner choices for retention and license. No automatic pruning or license assumption was introduced.
 
-The LeetCode endpoint is unofficial and capped at 20 entries; submissions lost between snapshots still need an evidence-backed admin grant. The single cron's four workers need capacity validation for large cohorts. No production performance claim is made from the in-memory simulation.
+The LeetCode endpoint is unofficial and capped at 20 entries. With on-submit archiving, submissions that disappear before any lookup saves them need an evidence-backed admin grant. Normal request and database usage still count toward hosting quotas. No production performance claim is made from the in-memory simulation.
 
 ## Working-tree notes
 

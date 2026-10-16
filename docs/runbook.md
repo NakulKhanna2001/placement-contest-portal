@@ -9,7 +9,7 @@ The current workspace already has working Neon and Google OAuth settings. See [C
 3. Run `npm run db:migrate` against the intended database. The migrations are also exercised on a clean PGlite database by the test suite. Back up an existing database before applying migrations to it.
 4. Configure a Google OAuth **Web application** client with redirect URI `http://localhost:3000/api/auth/callback/google` locally and `https://YOUR_HOST/api/auth/callback/google` in the deployment. Use the real college domain for `ALLOWED_EMAIL_DOMAIN`, or leave it empty and use `ALLOWED_EMAILS` for an exact owner/tester allowlist. Google must return `email_verified: true`.
 5. Add administrator email addresses to `ADMIN_EMAILS` (comma separated; they must also satisfy the domain/explicit-email access policy). On Google sign-in, the matching user is created/upserted and the role is synchronized with this list. Changes to this list take effect when that user signs in again. Existing sessions read roles from the database on each request.
-6. Generate independent high-entropy values for `AUTH_SECRET` and `CRON_SECRET` (for example, `openssl rand -base64 32`). Keep their values out of Git.
+6. Generate a high-entropy `AUTH_SECRET` (for example, `openssl rand -base64 32`). Keep its value out of Git. No cron secret is needed.
 7. Run `npm run dev`, sign in, and verify a LeetCode account in `/account` using the bio token. The account becomes permanently linked. Students must finish this **before** the contest starts.
 
 No real credentials are needed for `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, or the public browser smoke tests.
@@ -17,10 +17,10 @@ No real credentials are needed for `npm test`, `npm run typecheck`, `npm run lin
 ## Deployment
 
 - Import this Next.js application into Vercel, supply the environment settings, and apply migrations from a trusted environment. Do not run migrations on every request.
-- `vercel.json` schedules `GET /api/cron/snapshot` every five minutes. Vercel sends `Authorization: Bearer <CRON_SECRET>` when that secret is configured. An external scheduler may call the same protected route if required.
-- Use a hosting plan that supports five-minute cron frequency and the route's 300-second execution budget. Vercel Hobby's cron limits are not sufficient for this schedule.
+- `vercel.json` defines **no cron jobs**. The previous `/api/cron/snapshot` endpoint and snapshot worker have been removed, making the app compatible with Vercel Hobby's cron limits.
+- Accepted submissions are archived only when a user submits a link. Keep compute in `iad1`, near the existing Neon database. `.vercelignore` excludes local secrets and generated artifacts from CLI uploads.
 - Verify that the deployment can reach both Postgres and `https://leetcode.com/graphql`. Production uses a small connection pool and disables prepared statements for compatibility with transaction poolers.
-- Run the authenticated preview load check below before the first public contest. Production OAuth, the hosting scheduler, and real database connectivity need this configured environment; local tests cannot validate provider settings.
+- Run the authenticated preview load check below before the first public contest. Production OAuth and database connectivity need real-environment checks; local tests cannot validate provider settings.
 
 ## Before each contest
 
@@ -37,8 +37,8 @@ No real credentials are needed for `npm test`, `npm run typecheck`, `npm run lin
 - Every batch has an inclusive one-hour acceptance window. The default bonus includes exactly 15:00. A solve at 15:01 gets base points. LeetCode's timestamp is authoritative.
 - The checker verifies the pasted ID belongs to that student's archive/live accepted list. It counts the earliest known valid acceptance for that problem, even if the later link arrived first. A revoked solve cannot be restored by resubmitting.
 - Links remain valid through the inclusive `contest end + grace` deadline. A late **link** is fine; a late **acceptance** is not.
-- Watch the structured `snapshot` logs (`users`, `stored`, `failed`). The job continues through grace to capture final-window solves, claims each student's fetch atomically, and uses at most four concurrent upstream requests. Duplicate cron invocations skip claimed users.
-- A zero `stored` count can be normal; a nonzero `failed` count warrants checking LeetCode availability. Verify jobs complete comfortably within five minutes at the expected student count. A large cohort or slow upstream may require a durable queue before increasing scale.
+- On a live lookup, the checker saves the student's whole recent accepted list, so another submitted ID from that list can be verified from the archive without another LeetCode call. Other students are not fetched automatically.
+- Remind students to submit promptly: LeetCode exposes only the latest 20 acceptances. A record lost before any on-submit archive captured it requires evidence-backed admin review. Monitor `check_log` outcomes and request failures; there is no scheduled worker to monitor.
 - If LeetCode fails, students see a retryable error. Use manual grants with proof for confirmed exceptions. Do not ask students for LeetCode cookies or source code.
 
 ## Grants, revokes, and rescoring
@@ -87,7 +87,7 @@ On a preview deployment you control, sign in as a test student and obtain the se
 npm run load:preview
 ```
 
-Optional knobs: `LOAD_CONCURRENCY` (1–200), `LOAD_SECONDS` (1–300). The script makes only GET requests to the home page and leaderboard, prints response counts and p50/p95/p99 latency, and fails on non-200 statuses. Use a test contest actually accepting submissions to exercise its problem page. Run just before and after an unlock; inspect database and cron latency in parallel. This is a smoke load tool, not evidence of a production capacity limit.
+Optional knobs: `LOAD_CONCURRENCY` (1–200), `LOAD_SECONDS` (1–300). The script makes only GET requests to the home page and leaderboard, prints response counts and p50/p95/p99 latency, and fails on non-200 statuses. Use a test contest actually accepting submissions to exercise its problem page. Run just before and after an unlock; inspect database and request latency. This is a smoke load tool, not evidence of a production capacity limit.
 
 ## Volunteer dry run before launch
 
@@ -97,11 +97,11 @@ Use ten students and a normal three-hour test contest. Keep the settled one-hour
 2. Verify ownership; confirm an account cannot be swapped or claimed by a second portal account.
 3. Leave the page open across contest start and batch unlock. Confirm no future problem names/links are in the earlier HTML or student API responses.
 4. Submit an accepted solve inside the window. Confirm its bonus and points, then watch leaderboard updates.
-5. Submit a link **after** its batch closes whose acceptance was **inside** the window: it must count. Submit a solve accepted outside the window: it must fail.
+5. Submit a link **after** its batch closes whose acceptance was **inside** the window and remains public or was already archived: it must count. Submit a solve accepted outside the window: it must fail.
 6. Repeat during grace and after the deadline. Only the latter must fail.
 7. Exercise an individual grant, bulk grant, revoke, re-grant, and rescore. Inspect audit details.
 8. File reports; try dismiss, revoke, and disqualify. Verify standings update and records are preserved.
-9. Observe successful scheduler runs and the maximum job duration throughout the contest.
+9. Confirm that submission-triggered lookups populate `seen_submissions`, that a second saved link verifies during an upstream outage, and that no cron jobs are configured.
 
 ## Outstanding owner decisions
 

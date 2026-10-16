@@ -8,7 +8,6 @@ import { POST as grant } from "@/app/api/admin/grants/route";
 import { POST as contest } from "@/app/api/admin/contests/route";
 import { POST as review, GET as reports } from "@/app/api/admin/reports/route";
 import { POST as linkAccount } from "@/app/api/link/route";
-import { GET as snapshot } from "@/app/api/cron/snapshot/route";
 import { GET as leaderboard } from "@/app/api/leaderboard/route";
 import { readBody } from "@/lib/http";
 const request = (body = "{}", headers: Record<string, string> = {}) => new Request("https://portal.test/api/submit", { method: "POST", headers: { "content-type": "application/json", ...headers }, body });
@@ -31,12 +30,5 @@ describe("HTTP boundaries", () => {
     expect((await grant(request(JSON.stringify({ action: "grant", userIds: [1], problemId: 1, acceptedAt: "invalid", reason: "r", evidence: "https://example.com" })))).status).toBe(400);
     await expect(readBody(request("{}", { "content-type": "text/plain" }), z.object({}))).rejects.toMatchObject({ status: 415 });
     await expect(readBody(request("x".repeat(50001)), z.object({}))).rejects.toMatchObject({ status: 413 });
-  });
-  it("fails closed when the cron secret is missing or incorrect", async () => {
-    vi.stubEnv("CRON_SECRET", "");
-    expect((await snapshot(new Request("https://portal.test/api/cron/snapshot", { headers: { authorization: "Bearer undefined" } }))).status).toBe(401);
-    vi.stubEnv("CRON_SECRET", "test-secret-only");
-    expect((await snapshot(new Request("https://portal.test/api/cron/snapshot", { headers: { authorization: "Bearer wrong" } }))).status).toBe(401);
-    vi.unstubAllEnvs();
   });
 });

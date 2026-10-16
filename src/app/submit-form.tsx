@@ -7,7 +7,7 @@ export function SubmitForm() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const router = useRouter();
-  return <section className="card"><h2>Submit a solve</h2><p className="muted">Paste the link to your accepted LeetCode submission.</p><form className="form-stack" onSubmit={async e => {
+  return <section className="card"><h2>Submit a solve</h2><p className="muted">Paste the link to your accepted LeetCode submission. Submit soon after solving so the acceptance is still visible on LeetCode.</p><form className="form-stack" onSubmit={async e => {
     e.preventDefault(); setBusy(true); setError(false); setMessage("");
     try { const r = await postJson("/api/submit", { link: new FormData(e.currentTarget).get("link") }); setMessage(`Verified · ${r.points} points${r.multiplier > 1 ? ` with ${r.multiplier}× early bonus` : ""}.`); window.dispatchEvent(new Event("contest:solve")); router.refresh(); }
     catch (e) { setError(true); setMessage(e instanceof Error ? e.message : "Network error. Please retry."); }

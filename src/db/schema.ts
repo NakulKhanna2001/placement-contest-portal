@@ -5,7 +5,9 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(), email: text("email").notNull().unique(), name: text("name").notNull().default(""),
   role: text("role", { enum: ["student", "admin"] }).notNull().default("student"),
   leetcodeUsername: text("leetcode_username"), leetcodeVerifiedAt: time("leetcode_verified_at"), verifyToken: text("verify_token"),
-  lastAttemptAt: time("last_attempt_at"), lastLinkAttemptAt: time("last_link_attempt_at"), nextSnapshotAt: time("next_snapshot_at"),
+  lastAttemptAt: time("last_attempt_at"), lastLinkAttemptAt: time("last_link_attempt_at"),
+  // Legacy scheduling column retained for migration compatibility; no cron uses it.
+  nextSnapshotAt: time("next_snapshot_at"),
   createdAt: time("created_at").notNull().defaultNow(),
 }, t => [uniqueIndex("users_leetcode_lower").on(sql`lower(${t.leetcodeUsername})`)]);
 export const contests = pgTable("contests", {

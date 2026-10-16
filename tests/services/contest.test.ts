@@ -1,8 +1,7 @@
-import { afterEach, describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { closeTestDbs } from "@/db/test-db";
 import { contests, solves, seenSubmissions, checkLog } from "@/db/schema";
 import { createContest, findContestForSubmission, findLiveContest, visibleProblems } from "@/services/contest";
-import { snapshotAll } from "@/services/snapshotter";
 import { checkSubmission } from "@/services/submission-checker";
 import { setup, at, start, batch, fake, link } from "../helpers";
 afterEach(closeTestDbs);
@@ -21,13 +20,19 @@ describe("contest and verification", () => {
     await expect(createContest(db, { title: "Overlap", startsAt: at(180), batches: [batch(4)] })).rejects.toThrow();
     expect(await db.select().from(contests)).toHaveLength(1);
   });
-  it("archives linked users idempotently, isolates upstream failures and skips idle time", async () => {
+  it("archives only the submitting student's list and reuses it without another upstream request", async () => {
     const { db, student } = await setup();
-    const client = { recentAccepted: async (name: string) => { if (name === "bo") throw new Error("down"); return [{ id: "1", slug: "hard-1", acceptedAt: at(10) }]; }, profileBio: async () => "" };
-    expect(await snapshotAll(db, client, at(-1))).toEqual({ users: 0, stored: 0, failed: 0 });
-    expect(await snapshotAll(db, client, at(20))).toEqual({ users: 2, stored: 1, failed: 1 });
-    expect((await snapshotAll(db, client, at(26))).stored).toBe(0);
-    expect((await db.select().from(seenSubmissions))[0].userId).toBe(student.id);
+    const recentAccepted = vi.fn(async () => [{ id: "1", slug: "easy-1-a", acceptedAt: at(10) }, { id: "2", slug: "hard-1", acceptedAt: at(12) }]);
+    const client = { recentAccepted, profileBio: async () => "" };
+    expect(await checkSubmission(db, client, { userId: student.id, link: link("1"), now: at(15) })).toMatchObject({ ok: true, points: 3 });
+    expect(recentAccepted).toHaveBeenCalledExactlyOnceWith("asha");
+    const archive = await db.select().from(seenSubmissions);
+    expect(archive).toHaveLength(2);
+    expect(archive.every(row => row.userId === student.id && +row.firstSeenAt === +at(15))).toBe(true);
+    recentAccepted.mockRejectedValue(new Error("LeetCode unavailable"));
+    expect(await checkSubmission(db, client, { userId: student.id, link: link("2"), now: at(185) })).toMatchObject({ ok: true, points: 18 });
+    expect(recentAccepted).toHaveBeenCalledTimes(1);
+    expect(await db.select().from(seenSubmissions)).toHaveLength(2);
   });
   it("accepts archive-only late links through grace, with LeetCode's own time", async () => {
     const { db, student } = await setup();
