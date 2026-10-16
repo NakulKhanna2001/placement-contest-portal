@@ -8,6 +8,7 @@ import type { ContestEditorData } from "@/lib/contest-form";
 import { PageHeader } from "../components/page-header";
 import { ContentSkeleton } from "../components/skeleton";
 import { Icon } from "../components/ui-icon";
+import { LocalDateTime } from "../components/local-date-time";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin" };
@@ -46,7 +47,7 @@ async function AdminWorkspace() {
         <h3 className="subsection-title">Scheduled & draft contests</h3>
         {cs.map(c => <details className="contest-details" key={c.id}>
           <summary><span>{c.title}</span><span className="badge neutral">{c.status === "draft" ? "Draft" : c.endsAt < now ? "Ended" : c.startsAt > now ? "Scheduled" : "Live"}</span></summary>
-          <p className="muted">#{c.id} · {c.startsAt.toUTCString()}</p>
+          <p className="muted">#{c.id} · <LocalDateTime value={c.startsAt.toISOString()} /></p>
           {c.status === "draft" || c.startsAt > now ? <EditContest initial={editorData(c)} /> : <p className="muted">Editing is locked because this contest has started.</p>}
           {c.status === "draft" && c.startsAt > now && <PublishForm contestId={c.id} />}
           {c.status === "draft" && c.startsAt <= now && <p className="card-footnote">Edit the start time before publishing this draft.</p>}

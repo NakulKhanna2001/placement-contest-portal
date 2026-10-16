@@ -69,7 +69,9 @@ The `0001` migration adds a `revision` counter to existing contests with a defau
 
 ## After the contest
 
-- `/results` lists completed published contests. Detailed results and reports require college login.
+- `/results` lists completed published contests. Detailed results and reports require Google sign-in.
+- Completed results include all contest problems for practice even when the leaderboard is empty. New acceptances after a batch closes cannot earn points. When a contest is still running, use **Open contest** to return to the live problem page.
+- Displayed contest times use the viewer's local timezone after hydration, with a UTC tooltip/fallback. Server timestamps still control release and scoring.
 - Results are provisional through grace. After the link deadline, student submissions close, while audited administrator corrections remain possible.
 - Students can inspect each participant's solve times and manual/revoked status. Disqualified users are excluded from rankings; their solve records remain visible with a disqualification label. Source code is never stored or displayed.
 - Reports require an evidence URL and description. One report per reporter/target/contest is allowed. Admins can dismiss, revoke a solve belonging to the reported participant and contest (and reported problem, when specified), or disqualify. A reviewed report cannot be decided a second time.

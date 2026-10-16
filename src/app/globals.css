@@ -193,6 +193,10 @@ details[open] > summary { margin-bottom: 17px; }
 .archive-row strong { font-size: 15px; font-weight: 500; }
 .archive-row > div > span { font-size: 12px; color: var(--muted); }
 .archive-row > svg { color: var(--muted); }
+.archive-batch + .archive-batch { margin-top: 28px; }
+.archive-batch > h3 { margin-bottom: 4px; }
+.archive-batch > .status-line { margin-bottom: 16px; }
+.stat strong time { font-size: 17px; }
 .admin-summary { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: -5px 0 23px; color: var(--muted); font-size: 13px; }
 .subsection-title { margin: 23px 0 14px; font-size: 14px; color: var(--muted); }
 .create-contest-details { padding: 12px 15px; border: 1px solid #e9cfc6; border-radius: 6px; background: #fdf7f4; }

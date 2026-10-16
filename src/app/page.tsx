@@ -12,9 +12,9 @@ import { LiveBoard } from "./live-board";
 import { AutoRefresh } from "./components/auto-refresh";
 import { PageHeader } from "./components/page-header";
 import { Icon } from "./components/ui-icon";
+import { LocalDateTime } from "./components/local-date-time";
 
 export const dynamic = "force-dynamic";
-const utc = (date: Date) => date.toISOString().slice(11, 16) + " UTC";
 
 function ContestRules({ bonusMultiplier = 1.5, bonusWindowSeconds = 900, graceSeconds = 600 }: { bonusMultiplier?: number; bonusWindowSeconds?: number; graceSeconds?: number }) {
   return <details className="card contest-rules">
@@ -66,7 +66,7 @@ export default async function Home() {
       <PageHeader title="Contests" description="Find the next contest and get ready to participate." />
       <section className="card next-contest">
         <h2>{next?.title ?? "No contest scheduled yet"}</h2>
-        <p className="muted">{next ? `${next.startsAt.toUTCString()} · ${Math.round((+next.endsAt - +next.startsAt) / 3600000)} hours` : "Check back soon for the next contest."}</p>
+        <p className="muted">{next ? <><LocalDateTime value={next.startsAt.toISOString()} /> · {Math.round((+next.endsAt - +next.startsAt) / 3600000)} {+next.endsAt - +next.startsAt === 3600000 ? "hour" : "hours"}</> : "Check back soon for the next contest."}</p>
         {!viewer.leetcodeUsername && <p>Link your LeetCode account before the contest starts.</p>}
         <div className="actions">
           {!viewer.leetcodeUsername && <Link className="button" href="/account">Link LeetCode</Link>}
@@ -77,7 +77,7 @@ export default async function Home() {
       </section>
       <ContestRules />
       <section className="card"><div className="section-head"><h2>Recent contests</h2><Link className="inline-link" href="/results">All results <Icon name="arrow" size={15} /></Link></div>
-        {recent.length ? recent.map(c => <Link className="archive-row" href={`/results/${c.id}`} key={c.id}><div><strong>{c.title}</strong><span>{c.startsAt.toUTCString()}</span></div><Icon name="arrow" /></Link>) : <div className="empty-inline"><Icon name="results" /><p>Completed contests will appear here after the first round.</p></div>}
+        {recent.length ? recent.map(c => <Link className="archive-row" href={`/results/${c.id}`} key={c.id}><div><strong>{c.title}</strong><span><LocalDateTime value={c.startsAt.toISOString()} /></span></div><Icon name="arrow" /></Link>) : <div className="empty-inline"><Icon name="results" /><p>Completed contests will appear here after the first round.</p></div>}
       </section>
     </main>;
   }
@@ -97,15 +97,15 @@ export default async function Home() {
     <AutoRefresh serverTime={+now} refreshAfterMs={nextBoundary ? nextBoundary - +now + 1000 : 60000} />
     <PageHeader title={contest.title} description="Solve on LeetCode, then submit your accepted link below." aside={<span className="badge"><span className="status-dot" />{grace ? "Accepting links" : "Live contest"}</span>} />
     <div className="stats">
-      <div className="stat"><span>Contest ends</span><strong>{utc(contest.endsAt)}</strong></div>
-      <div className="stat"><span>Link deadline</span><strong>{utc(new Date(+contest.endsAt + contest.graceSeconds * 1000))}</strong></div>
+      <div className="stat"><span>Contest ends</span><strong><LocalDateTime value={contest.endsAt.toISOString()} timeOnly /></strong></div>
+      <div className="stat"><span>Link deadline</span><strong><LocalDateTime value={new Date(+contest.endsAt + contest.graceSeconds * 1000).toISOString()} timeOnly /></strong></div>
       <div className="stat"><span>First {contest.bonusWindowSeconds / 60} min / batch</span><strong>{contest.bonusMultiplier}× <small>bonus</small></strong></div>
       <div className="stat highlight"><span>Your score</span><strong>{board.find(r => r.userId === viewer.id)?.points ?? 0}<small>pts</small></strong></div>
     </div>
     <div className="columns"><div>
       {viewer.leetcodeVerifiedAt && viewer.leetcodeVerifiedAt <= contest.startsAt ? <SubmitForm /> : <p className="notice">Your LeetCode account must be verified before the contest starts. <Link href="/account">Link your account</Link> for the next contest.</p>}
       {batchList.map(b => <section className={`card batch-card ${b.unlockAt > now ? "locked" : ""}`} key={b.id}>
-        <div className="section-head"><div><h2>Batch {b.position + 1}</h2><p className="status-line">{utc(b.unlockAt)} — {utc(b.closesAt)}</p></div><span className={`badge ${b.closesAt < now || b.unlockAt > now ? "neutral" : ""}`}>{b.unlockAt > now ? "Locked" : b.closesAt < now ? "Closed" : "Open"}</span></div>
+        <div className="section-head"><div><h2>Batch {b.position + 1}</h2><p className="status-line"><LocalDateTime value={b.unlockAt.toISOString()} timeOnly /> — <LocalDateTime value={b.closesAt.toISOString()} timeOnly /></p></div><span className={`badge ${b.closesAt < now || b.unlockAt > now ? "neutral" : ""}`}>{b.unlockAt > now ? "Locked" : b.closesAt < now ? "Closed" : "Open"}</span></div>
         {b.unlockAt > now ? <div className="locked-message"><Icon name="lock" /><p>Four problems. One hour.<br /><span>Problems appear when this batch unlocks.</span></p></div> : list.filter(p => p.batchPosition === b.position).map(p => {
           const solved = mySolves.find(s => s.problemId === p.id);
           return <div className="problem" key={p.id}><div><a href={`https://leetcode.com/problems/${p.slug}/`} target="_blank" rel="noreferrer">{p.title} <Icon name="external" size={14} /></a><div className="meta"><span className={`badge ${p.difficulty}`}>{p.difficulty}</span>{solved && <span>{solved.status === "valid" ? `✓ Verified · ${solved.points} pts` : "Solve revoked"}</span>}</div></div><span className="points">{p.points}<small> pts</small></span></div>;

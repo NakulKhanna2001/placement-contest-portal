@@ -7,7 +7,15 @@ Date: 2026-10-15
 - Handoff: [`HANDOFF.md`](HANDOFF.md)
 - Implementation plan: [`docs/superpowers/plans/2026-10-15-weekly-contest-portal.md`](docs/superpowers/plans/2026-10-15-weekly-contest-portal.md)
 - Source of truth: [`docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md`](docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md)
-- **Status:** live on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. Public verified-Google sign-in is enabled, with students by default and explicit email-based admin roles. Google Audience is External/**In production**. **69 automated tests and 10 browser checks pass**, along with the build and CI. Contest editing and submission-triggered archiving remain in place.
+- **Status:** live on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. Public verified-Google sign-in is enabled, with students by default and explicit email-based admin roles. Google Audience is External/**In production**. **80 automated tests and 10 browser checks pass locally**, with a successful production build. The visibility follow-up adds archived problem sets and contest-scoped standings state.
+
+## Visibility and standings follow-up
+
+The owner reported missing problems while viewing the results of the finished, one-batch contest 1. Four problems were present in the database, but the results page only displayed solve records, of which there were none. Completed results now show the full problem set for practice; future/live results provide an Open contest link without exposing locked questions. Displayed times are localized with a deterministic UTC fallback.
+
+Leaderboard tests also exposed stale rows and error state when changing contest IDs; both are now scoped to their originating contest. An isolated one-hour, three-student demo produces the expected 18 / 15 / 9.5 standings, and the existing 50-student simulation remains green. **80 unit/integration tests pass.**
+
+At the owner's request, live demo contest 2 was created for 17:24–18:24 IST on 16 October, with links accepted until 18:34. Its four links and submission form were checked after unlock. The hosted checker correctly rejected a nonexistent ID without scoring. No synthetic production scores or users were added. See `docs/demo-verification.md` for the distinction between live and simulated tests.
 
 ## Public Google access update
 
@@ -111,7 +119,7 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 
 | Command/check | Result |
 |---|---|
-| `npm test` | **PASS: 69 tests in 15 files.** Includes contest editing, public/restricted access policies, verified Google claims, multiple admin emails, default student registration, and role synchronization, in addition to the contest/scoring/moderation coverage. |
+| `npm test` | **PASS: 80 tests in 19 files.** Includes finished-results problem visibility, future/live gating, localized timestamps, live-board isolation, a three-student demo, and all previous auth/contest/scoring/moderation coverage. |
 | `npm run typecheck` | **PASS** |
 | `npm run lint` | **PASS** |
 | `npm run build` | **PASS**, production Next.js build with all application/API routes |

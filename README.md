@@ -89,6 +89,8 @@ npm run dev
 3. As an administrator, visit `/admin` to schedule or draft a contest, manage grants, review reports, and inspect the audit trail.
 4. Students use `/` during a contest and `/results` afterward.
 
+Completed results include the full problem set for practice, even when no solves were submitted. Contest times display in your local timezone, with the UTC instant available on hover. See [demo verification](docs/demo-verification.md) for the live demo and isolated scoring checks.
+
 **Editing:** In `/admin`, expand an existing contest, select **Edit contest**, make changes, and select **Save changes**. Drafts and future scheduled contests are editable; started contests are locked. The editor displays the start time in your local timezone and records changes in the audit log.
 
 **Adding administrators:** Update `ADMIN_EMAILS` in Vercel with comma-separated email addresses, preserving the existing owner address, then redeploy. Those accounts receive admin access on their next Google sign-in. Everyone else remains a student. Never use a domain or wildcard in this list.

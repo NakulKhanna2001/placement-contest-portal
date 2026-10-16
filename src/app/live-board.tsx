@@ -7,8 +7,8 @@ export function BoardTable({ rows }: { rows: BoardRow[] }) {
 }
 
 export function LiveBoard({ contestId, initial }: { contestId: number; initial: BoardRow[] }) {
-  const [snapshot, setSnapshot] = useState<{ rows: BoardRow[]; receivedAt: number } | null>(null);
-  const [error, setError] = useState(false);
+  const [snapshot, setSnapshot] = useState<{ contestId: number; rows: BoardRow[] } | null>(null);
+  const [failedContestId, setFailedContestId] = useState<number | null>(null);
   useEffect(() => {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -23,8 +23,8 @@ export function LiveBoard({ contestId, initial }: { contestId: number; initial: 
         const res = await fetch(`/api/leaderboard?contestId=${contestId}`, { signal: requestController.signal });
         if (!res.ok) throw new Error("Leaderboard unavailable");
         const data = await res.json();
-        if (!stopped && controller === requestController) { setSnapshot({ rows: data.board, receivedAt: Date.now() }); setError(false); }
-      } catch { if (!stopped && controller === requestController) setError(true); }
+        if (!stopped && controller === requestController) { setSnapshot({ contestId, rows: data.board }); setFailedContestId(null); }
+      } catch { if (!stopped && controller === requestController) setFailedContestId(contestId); }
       finally { if (!stopped && controller === requestController) timer = setTimeout(load, 12000); }
     };
     const onSolve = () => { clearTimeout(timer); void load(); };
@@ -32,5 +32,5 @@ export function LiveBoard({ contestId, initial }: { contestId: number; initial: 
     window.addEventListener("contest:solve", onSolve);
     return () => { stopped = true; controller?.abort(); clearTimeout(timer); window.removeEventListener("contest:solve", onSolve); };
   }, [contestId]);
-  return <section className="card leaderboard-card"><div className="section-head"><h2>Leaderboard</h2><span className="live-label"><span className="status-dot" />Live</span></div><p className="status-line">Updates every 12 seconds</p><BoardTable rows={snapshot?.rows ?? initial} />{error && <p role="status" className="notice error">Connection interrupted. Showing the last standings; retrying shortly.</p>}</section>;
+  return <section className="card leaderboard-card"><div className="section-head"><h2>Leaderboard</h2><span className="live-label"><span className="status-dot" />Live</span></div><p className="status-line">Updates every 12 seconds</p><BoardTable rows={snapshot?.contestId === contestId ? snapshot.rows : initial} />{failedContestId === contestId && <p role="status" className="notice error">Connection interrupted. Showing the last standings; retrying shortly.</p>}</section>;
 }
