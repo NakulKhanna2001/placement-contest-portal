@@ -30,6 +30,20 @@ No real credentials are needed for `npm test`, `npm run typecheck`, `npm run lin
 4. Save as a draft while preparing; publish before the start. Draft problems are never exposed by student endpoints.
 5. Remind students to finish ownership verification before the start and paste links promptly even though linking stays open through grace.
 
+## Editing an existing contest
+
+In `/admin`, expand the contest under **Scheduled & draft contests**, then choose **Edit contest**. The form is pre-filled with its title, local start time, status, scoring settings, batch count, and problems. Change the fields and select **Save changes**, or use **Cancel editing** to discard local edits.
+
+- Drafts can be edited even if their old start time has passed, but a future start is required when saving.
+- Published/scheduled contests can be edited only before their original start. Live, grace-period, and finished contests are locked; changing the requested start does not bypass that rule.
+- A future scheduled contest can be returned to draft using the Status field.
+- Edits keep the contest ID and retain problem IDs for existing difficulty slots. Batch unlock/close times and contest end are recalculated.
+- Overlaps (including grace), duplicate slugs, invalid batch mixes, and edits to contests with solve records are rejected.
+- If another admin/tab changed or published the contest since the editor opened, the save is rejected. Refresh and reopen rather than overwriting newer changes.
+- Every successful edit writes an `update_contest` audit record containing the prior configuration and the new configuration, in the same transaction as the changes.
+
+The `0001` migration adds a `revision` counter to existing contests with a default of zero. Apply `npm run db:migrate` before deploying this editing feature to an existing database.
+
 ## During the contest
 
 - The leaderboard fetches its small API response about every 12 seconds while the page is visible. It does not refresh the entire page. Successful submissions trigger a prompt board update.

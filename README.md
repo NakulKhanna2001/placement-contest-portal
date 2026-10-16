@@ -87,6 +87,8 @@ npm run dev
 3. As an administrator, visit `/admin` to schedule or draft a contest, manage grants, review reports, and inspect the audit trail.
 4. Students use `/` during a contest and `/results` afterward.
 
+**Editing:** In `/admin`, expand an existing contest, select **Edit contest**, make changes, and select **Save changes**. Drafts and future scheduled contests are editable; started contests are locked. The editor displays the start time in your local timezone and records changes in the audit log.
+
 `vercel.json` uses the Next.js preset and the `iad1` region near the Neon database. It defines **zero cron jobs** and works on Vercel Hobby. See the [runbook](docs/runbook.md) for deployment details.
 
 ### Fast local preview

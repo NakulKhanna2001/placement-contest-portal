@@ -13,6 +13,7 @@ export const users = pgTable("users", {
 export const contests = pgTable("contests", {
   id: serial("id").primaryKey(), title: text("title").notNull(), startsAt: time("starts_at").notNull(), endsAt: time("ends_at").notNull(),
   status: text("status", { enum: ["draft", "scheduled"] }).notNull().default("scheduled"),
+  revision: integer("revision").notNull().default(0),
   graceSeconds: integer("grace_seconds").notNull(), bonusWindowSeconds: integer("bonus_window_seconds").notNull(), bonusMultiplier: real("bonus_multiplier").notNull(),
 }, t => [check("contest_times", sql`${t.endsAt} > ${t.startsAt}`), check("contest_config", sql`${t.graceSeconds} >= 0 and ${t.bonusWindowSeconds} >= 0 and ${t.bonusMultiplier} >= 1`), index("contest_start").on(t.startsAt)]);
 export const batches = pgTable("batches", {

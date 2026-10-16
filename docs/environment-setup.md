@@ -55,6 +55,8 @@ Production checks completed on 2026-10-16 at **https://nst-lc-grind.vercel.app**
 
 Earlier local/database setup checks:
 
+- The contest-editing release applies migration `0001`, adding a revision counter for stale-edit protection. A private pre-migration backup was taken; existing contest content and schedules are preserved.
+
 - `npm run db:migrate` applied the initial migration to the dedicated Neon database.
 - Direct Postgres verification confirmed all ten application tables and one migration record.
 - Completed the real Google account chooser and basic profile/email consent flow.

@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { getViewer } from "@/services/viewer";
 import { getDb } from "@/db";
 import { getAdminOverview } from "@/services/admin-overview";
-import { GrantForm, PublishForm, RescoreForm, ReviewForm, RevokeForm, ScheduleForm } from "./admin-forms";
+import { EditContest, GrantForm, PublishForm, RescoreForm, ReviewForm, RevokeForm, ScheduleForm } from "./admin-forms";
+import type { ContestEditorData } from "@/lib/contest-form";
 import { PageHeader } from "../components/page-header";
 import { ContentSkeleton } from "../components/skeleton";
 import { Icon } from "../components/ui-icon";
@@ -25,6 +26,13 @@ async function AdminWorkspace() {
   const contestName = (id: number) => contestNames.get(id) ?? `Contest ${id}`;
   const solveOption = (s: typeof ss[number]) => ({ id: s.id, label: `#${s.id} · ${studentName(s.userId)} · ${problemName(s.problemId)} · ${s.points} pts` });
   const now = new Date();
+  const editorData = (contest: typeof cs[number]): ContestEditorData => {
+    const difficultyOrder = { easy: 0, medium: 1, hard: 2 };
+    const lists: ContestEditorData["batches"] = [];
+    const ordered = ps.filter(p => p.contestId === contest.id).sort((a, b) => a.batchPosition - b.batchPosition || difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty] || a.id - b.id);
+    for (const p of ordered) (lists[p.batchPosition] ??= []).push({ difficulty: p.difficulty, title: p.title, slug: p.slug });
+    return { id: contest.id, revision: contest.revision, title: contest.title, startsAt: contest.startsAt.toISOString(), status: contest.status, graceSeconds: contest.graceSeconds, bonusWindowSeconds: contest.bonusWindowSeconds, bonusMultiplier: contest.bonusMultiplier, batches: lists };
+  };
 
   return <div className="admin-workspace" data-page-ready="/admin">
     <div className="admin-summary">
@@ -36,7 +44,13 @@ async function AdminWorkspace() {
       <section className="card"><div className="section-head"><h2>Contest scheduling</h2><Icon name="arena" /></div>
         <details className="create-contest-details"><summary>Create a new contest <span>+</span></summary><p className="muted">Each batch lasts one hour. Local start times are converted to UTC.</p><ScheduleForm /></details>
         <h3 className="subsection-title">Scheduled & draft contests</h3>
-        {cs.map(c => <details className="contest-details" key={c.id}><summary><span>{c.title}</span><span className="badge neutral">{c.status === "draft" ? "Draft" : c.endsAt < now ? "Ended" : c.startsAt > now ? "Scheduled" : "Live"}</span></summary><p className="muted">#{c.id} · {c.startsAt.toUTCString()}</p>{c.status === "draft" && <PublishForm contestId={c.id} />}</details>)}
+        {cs.map(c => <details className="contest-details" key={c.id}>
+          <summary><span>{c.title}</span><span className="badge neutral">{c.status === "draft" ? "Draft" : c.endsAt < now ? "Ended" : c.startsAt > now ? "Scheduled" : "Live"}</span></summary>
+          <p className="muted">#{c.id} · {c.startsAt.toUTCString()}</p>
+          {c.status === "draft" || c.startsAt > now ? <EditContest initial={editorData(c)} /> : <p className="muted">Editing is locked because this contest has started.</p>}
+          {c.status === "draft" && c.startsAt > now && <PublishForm contestId={c.id} />}
+          {c.status === "draft" && c.startsAt <= now && <p className="card-footnote">Edit the start time before publishing this draft.</p>}
+        </details>)}
         {!cs.length && <div className="empty-inline"><Icon name="clock" /><p>No contests yet. Create a draft to prepare your first round.</p></div>}
       </section>
       <section className="card"><div className="section-head"><h2>Report queue</h2><span className="badge neutral">{pending.length} pending</span></div>

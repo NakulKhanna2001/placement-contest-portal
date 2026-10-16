@@ -1,6 +1,6 @@
-import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { batches, contests, problems } from "@/db/schema";
+import { batches, contests, problems, solves } from "@/db/schema";
 import { DEFAULTS } from "@/lib/config";
 import { contestInput } from "@/lib/validation";
 import type { Difficulty } from "@/lib/types";
@@ -43,9 +43,73 @@ export async function publishContest(db: Db, contestId: number, adminId: number,
     const [c] = await tx.select().from(contests).where(eq(contests.id, contestId));
     if (!c || c.status !== "draft" || c.startsAt <= now) return false;
     await assertNoOverlap(tx, c.startsAt, c.endsAt, c.graceSeconds, c.id);
-    await tx.update(contests).set({ status: "scheduled" }).where(eq(contests.id, c.id));
+    await tx.update(contests).set({ status: "scheduled", revision: c.revision + 1 }).where(eq(contests.id, c.id));
     await writeAudit(tx, { actorId: adminId, action: "publish_contest", target: `contest:${c.id}`, now });
     return true;
+  });
+}
+
+export async function updateContest(db: Db, raw: ContestInput, actor: {
+  adminId: number; contestId: number; revision: number; now: Date;
+}): Promise<number> {
+  const input = contestInput.parse(raw);
+  const endsAt = new Date(+input.startsAt + input.batches.length * DEFAULTS.windowSeconds * 1000);
+  return db.transaction(async tx => {
+    await requireAdmin(tx, actor.adminId);
+    // Use the same scheduling lock as create/publish for race-free overlap checks.
+    await tx.execute(sql`LOCK TABLE contests IN SHARE ROW EXCLUSIVE MODE`);
+    const [current] = await tx.select().from(contests).where(eq(contests.id, actor.contestId)).for("update");
+    if (!current) throw new HttpError(404, "Contest not found.");
+    if (current.status === "scheduled" && current.startsAt <= actor.now) throw new HttpError(409, "This contest has started and can no longer be edited.");
+    if (current.revision !== actor.revision) throw new HttpError(409, "This contest changed since you opened it. Refresh the page and reopen the editor.");
+    if (input.startsAt <= actor.now) throw new HttpError(400, "Choose a future start time.");
+    const [hasSolve] = await tx.select({ id: solves.id }).from(solves)
+      .innerJoin(problems, eq(solves.problemId, problems.id)).innerJoin(batches, eq(problems.batchId, batches.id))
+      .where(eq(batches.contestId, current.id)).limit(1);
+    if (hasSolve) throw new HttpError(409, "A contest with solve records cannot be edited.");
+    const graceSeconds = input.graceSeconds ?? current.graceSeconds;
+    const status = raw.status ?? current.status;
+    if (status === "scheduled") await assertNoOverlap(tx, input.startsAt, endsAt, graceSeconds, current.id);
+
+    const oldBatches = await tx.select().from(batches).where(eq(batches.contestId, current.id)).orderBy(asc(batches.position));
+    const oldProblems = await tx.select({ problem: problems }).from(problems).innerJoin(batches, eq(problems.batchId, batches.id))
+      .where(eq(batches.contestId, current.id)).orderBy(asc(problems.id));
+    const [updated] = await tx.update(contests).set({
+      title: input.title, startsAt: input.startsAt, endsAt, status,
+      graceSeconds, bonusWindowSeconds: input.bonusWindowSeconds ?? current.bonusWindowSeconds,
+      bonusMultiplier: input.bonusMultiplier ?? current.bonusMultiplier, revision: current.revision + 1,
+    }).where(eq(contests.id, current.id)).returning();
+
+    // Retain IDs for existing batch positions and difficulty slots. This keeps
+    // links and administrative references stable when only content/timing changes.
+    for (const [position, list] of input.batches.entries()) {
+      const unlockAt = new Date(+input.startsAt + position * DEFAULTS.batchSpacingSeconds * 1000);
+      const values = { contestId: current.id, position, unlockAt, closesAt: new Date(+unlockAt + DEFAULTS.windowSeconds * 1000) };
+      const existing = oldBatches.find(b => b.position === position);
+      const [savedBatch] = existing
+        ? await tx.update(batches).set(values).where(eq(batches.id, existing.id)).returning()
+        : await tx.insert(batches).values(values).returning();
+      const available = oldProblems.map(row => row.problem).filter(p => p.batchId === savedBatch.id);
+      const used = new Set<number>();
+      for (const problem of list) {
+        const old = available.find(p => p.difficulty === problem.difficulty && !used.has(p.id));
+        const values = { ...problem, batchId: savedBatch.id, points: DEFAULTS.points[problem.difficulty] };
+        if (old) { used.add(old.id); await tx.update(problems).set(values).where(eq(problems.id, old.id)); }
+        else await tx.insert(problems).values(values);
+      }
+      const unused = available.filter(p => !used.has(p.id)).map(p => p.id);
+      if (unused.length) await tx.delete(problems).where(inArray(problems.id, unused));
+    }
+    const removed = oldBatches.filter(b => b.position >= input.batches.length).map(b => b.id);
+    if (removed.length) {
+      await tx.delete(problems).where(inArray(problems.batchId, removed));
+      await tx.delete(batches).where(inArray(batches.id, removed));
+    }
+    await writeAudit(tx, {
+      actorId: actor.adminId, action: "update_contest", target: `contest:${current.id}`, now: actor.now,
+      details: JSON.stringify({ before: { contest: current, batches: oldBatches, problems: oldProblems.map(r => r.problem) }, after: { contest: updated, batches: input.batches } }),
+    });
+    return current.id;
   });
 }
 export async function findLiveContest(db: Db, now: Date): Promise<ContestRow | null> {

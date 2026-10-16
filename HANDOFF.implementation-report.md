@@ -7,7 +7,7 @@ Date: 2026-10-15
 - Handoff: [`HANDOFF.md`](HANDOFF.md)
 - Implementation plan: [`docs/superpowers/plans/2026-10-15-weekly-contest-portal.md`](docs/superpowers/plans/2026-10-15-weekly-contest-portal.md)
 - Source of truth: [`docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md`](docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md)
-- **Status:** live at **https://nst-lc-grind.vercel.app** on Vercel Hobby with **zero cron jobs**. Production Google sign-in, the database-backed admin session, and anonymous API protection are verified. Verification/archiving is submission-triggered. **42 automated tests and 8 browser checks pass**, including GitHub Actions.
+- **Status:** deployed on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. The contest-editing update adds pre-filled admin forms and audited, revision-checked updates for drafts and future scheduled contests. **61 automated tests pass locally**; the existing browser checks and deployment verification are part of the release checks. Production Google sign-in and submission-triggered archiving remain in place.
 
 The original handoff and plan have been preserved as approved historical documents. Their “no application code” state and unchecked tasks no longer describe the current repository. Begin future work by inspecting this report and the actual code, rather than re-running the scaffold steps.
 
@@ -20,6 +20,14 @@ The existing checker already fetches and archives the submitting student's entir
 The existing Vercel `nst-lc-grind` project is on Hobby, with Node 24, Next.js, and `iad1` near Neon. Production environment values are stored privately in Vercel, the canonical auth URL is `https://nst-lc-grind.vercel.app`, and the Google client includes that origin/callback alongside localhost. The unused legacy `next_snapshot_at` column is retained, so no new migration is needed. See `docs/environment-setup.md` for the current hosting configuration.
 
 Production verification completed: Vercel reports Ready/Hobby and no cron definitions; public pages return 200; the old cron endpoint returns 404; anonymous admin requests return 401; the real owner Google login yields an admin session and an authenticated admin API response of 200. The no-cron source update is published to `stalin670/NST-LC-GRIND` and its GitHub Actions run passed. The volunteer contest and load check remain prerequisites for opening broad student access.
+
+## Contest-editing follow-up
+
+The owner requested editing for already drafted or scheduled contests. Admin rows now provide **Edit contest**, a pre-filled form, **Save changes**, and **Cancel editing**. Local timestamps are displayed correctly, and unchanged instants survive browser normalization, fractional seconds, and daylight-saving ambiguity. Temporarily reducing/restoring the batch count preserves unsaved problem input.
+
+`updateContest` validates the complete configuration, requires an admin, serializes scheduling checks, rejects stale revisions and started contests, prevents overlap through grace, preserves remaining problem IDs, and audits changes atomically. Contests with solve records are protected. Publishing also advances the revision, preventing an older editor from silently undoing publication. Unknown API actions cannot fall through to contest creation.
+
+Migration `0001_married_professor_monster.sql` adds only `contests.revision integer DEFAULT 0 NOT NULL`; it does not modify existing contest titles, times, problems, or scores. A private database backup was taken and the migration was applied before publishing the code. The test suite includes 11 database edit cases, 7 interactive form cases, and the API contract regression. Production verification opens the existing editor without saving changes to the owner's contest.
 
 ## Environment setup follow-up
 
@@ -97,7 +105,7 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 
 | Command/check | Result |
 |---|---|
-| `npm test` | **PASS: 42 tests in 12 files.** Includes clean migrations, ownership, validation, owner-only allowlist, race cases, rollback, authorization, moderation, submission-triggered archives for 50 students across three batches, cached dates, admin overview reads, and skeleton semantics. |
+| `npm test` | **PASS: 61 tests in 14 files.** Includes the previous coverage plus transactional edits, start/overlap guards, stale revisions, pre-filled forms, local-time preservation, cancellation, and create-flow regression checks. |
 | `npm run typecheck` | **PASS** |
 | `npm run lint` | **PASS** |
 | `npm run build` | **PASS**, production Next.js build with all application/API routes |

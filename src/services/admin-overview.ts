@@ -5,7 +5,7 @@ import { HttpError } from "@/lib/errors";
 
 type JsonDates<T> = { [K in keyof T]: T[K] extends Date ? string : T[K] extends Date | null ? string | null : T[K] };
 type StudentOption = Pick<typeof users.$inferSelect, "id" | "name" | "email">;
-type ProblemOption = { id: number; title: string; contestId: number };
+type ProblemOption = { id: number; title: string; contestId: number; batchPosition: number; slug: string; difficulty: typeof problems.$inferSelect.difficulty };
 type SolveOption = { id: number; userId: number; problemId: number; contestId: number; points: number };
 
 function jsonObject(fields: Record<string, SQLWrapper>) {
@@ -30,7 +30,7 @@ export async function getAdminOverview(db: Db, adminId: number) {
       from ${users}
     ), '[]'::json)`,
     problems: sql<ProblemOption[]>`coalesce((
-      select json_agg(${jsonObject({ id: problems.id, title: problems.title, contestId: batches.contestId })} order by ${qualified(problems.id)})
+      select json_agg(${jsonObject({ id: problems.id, title: problems.title, slug: problems.slug, difficulty: problems.difficulty, contestId: batches.contestId, batchPosition: batches.position })} order by ${qualified(problems.id)})
       from ${problems} inner join ${batches} on ${qualified(problems.batchId)} = ${qualified(batches.id)}
     ), '[]'::json)`,
     solves: sql<SolveOption[]>`coalesce((

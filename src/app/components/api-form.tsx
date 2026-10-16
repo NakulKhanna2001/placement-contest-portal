@@ -31,8 +31,8 @@ export async function postJson(url: string, body: unknown) {
   if (!response.ok) throw new Error(result.error ?? messages[result.reason] ?? "Request failed. Please try again.");
   return result;
 }
-export function ApiForm({ endpoint, children, label, transform, success = "Saved." }: {
-  endpoint: string; children: React.ReactNode; label: string; transform: (data: FormData) => unknown; success?: string;
+export function ApiForm({ endpoint, children, label, transform, success = "Saved.", onSuccess, onCancel }: {
+  endpoint: string; children: React.ReactNode; label: string; transform: (data: FormData) => unknown; success?: string; onSuccess?: () => void; onCancel?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -40,8 +40,8 @@ export function ApiForm({ endpoint, children, label, transform, success = "Saved
   const router = useRouter();
   return <form className="form-stack" aria-busy={busy} onSubmit={async e => {
     e.preventDefault(); setBusy(true); setMessage(""); setError(false);
-    try { const result = await postJson(endpoint, transform(new FormData(e.currentTarget))); setMessage(result.message ?? success); router.refresh(); }
+    try { const result = await postJson(endpoint, transform(new FormData(e.currentTarget))); setMessage(result.message ?? success); router.refresh(); onSuccess?.(); }
     catch (e) { setError(true); setMessage(e instanceof Error ? e.message : "Network error. Try again."); }
     finally { setBusy(false); }
-  }}>{children}<button disabled={busy} aria-busy={busy}>{busy && <span className="button-spinner" aria-hidden="true" />}{busy ? "Saving…" : label}</button>{message && <p role="status" className={`notice ${error ? "error" : ""}`}>{message}</p>}</form>;
+  }}>{children}<div className="form-actions"><button disabled={busy} aria-busy={busy}>{busy && <span className="button-spinner" aria-hidden="true" />}{busy ? "Saving…" : label}</button>{onCancel && <button type="button" className="button-secondary" disabled={busy} onClick={onCancel}>Cancel editing</button>}</div>{message && <p role="status" className={`notice ${error ? "error" : ""}`}>{message}</p>}</form>;
 }

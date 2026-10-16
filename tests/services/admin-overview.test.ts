@@ -14,9 +14,11 @@ it("loads an authorized, consistent admin overview with dates and valid solve ch
   const overview = await getAdminOverview(db, admin.id);
   expect(overview.contests).toHaveLength(1);
   expect(overview.contests[0].startsAt).toBeInstanceOf(Date);
+  expect(overview.contests[0].revision).toBe(0);
   expect(overview.students).toHaveLength(3);
   expect(overview.students[0]).not.toHaveProperty("verifyToken");
   expect(overview.problems).toHaveLength(12);
+  expect(overview.problems[0]).toMatchObject({ slug: "easy-1-a", difficulty: "easy", batchPosition: 0 });
   expect(overview.solves).toMatchObject([{ id: result.solveId, userId: student.id }]);
   expect(overview.audits[0].createdAt).toEqual(at(200));
   expect(overview.reports).toEqual([]);

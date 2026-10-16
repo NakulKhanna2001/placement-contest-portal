@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 const { auth } = vi.hoisted(() => ({ auth: vi.fn() }));
 vi.mock("@/auth", () => ({ auth }));
+vi.mock("@/db", () => ({ getDb: () => { throw new Error("Unexpected database access in an HTTP validation test"); } }));
 import { POST as submit } from "@/app/api/submit/route";
 import { POST as report } from "@/app/api/report/route";
 import { POST as grant } from "@/app/api/admin/grants/route";
@@ -30,5 +31,15 @@ describe("HTTP boundaries", () => {
     expect((await grant(request(JSON.stringify({ action: "grant", userIds: [1], problemId: 1, acceptedAt: "invalid", reason: "r", evidence: "https://example.com" })))).status).toBe(400);
     await expect(readBody(request("{}", { "content-type": "text/plain" }), z.object({}))).rejects.toMatchObject({ status: 415 });
     await expect(readBody(request("x".repeat(50001)), z.object({}))).rejects.toMatchObject({ status: 413 });
+  });
+  it("requires a complete edit contract and never turns unknown actions into new contests", async () => {
+    auth.mockResolvedValue({ user: { id: 1, role: "admin" } });
+    const fields = { title: "Future", startsAt: new Date(Date.now() + 3600000).toISOString(), batches: [[
+      { difficulty: "easy", slug: "easy-a", title: "A" }, { difficulty: "easy", slug: "easy-b", title: "B" },
+      { difficulty: "medium", slug: "medium", title: "M" }, { difficulty: "hard", slug: "hard", title: "H" },
+    ]] };
+    expect((await contest(request(JSON.stringify({ ...fields, action: "unknown" })))).status).toBe(400);
+    expect((await contest(request(JSON.stringify({ action: "update", contestId: 1, revision: 0, contest: fields })))).status).toBe(400);
+    expect((await contest(request(JSON.stringify({ action: "update", contestId: 1, contest: { ...fields, status: "draft" } })))).status).toBe(400);
   });
 });
