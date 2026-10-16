@@ -1,0 +1,5 @@
+"use client";
+import { ApiForm } from "../components/api-form";
+export function ReportForm({ contestId, targetUserId, problems }: { contestId: number; targetUserId: number; problems: { id: number; title: string }[] }) {
+  return <details><summary>Report a concern with evidence</summary><p className="muted">Reports are private to admins. Include a clear explanation and a link to supporting evidence.</p><ApiForm endpoint="/api/report" label="Send report" success="Report sent for admin review." transform={data => ({ contestId, targetUserId, problemId: data.get("problemId") ? Number(data.get("problemId")) : null, proofUrl: data.get("proofUrl"), description: data.get("description") })}><label>Scope<select name="problemId"><option value="">Participant / entire contest</option>{problems.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}</select></label><label>Evidence URL<input name="proofUrl" type="url" required maxLength={2000} placeholder="https://…" /></label><label>What happened?<textarea name="description" required maxLength={2000} /></label></ApiForm></details>;
+}
