@@ -70,7 +70,7 @@ Open **http://localhost:3000**. This workspace now has a private `.env.local` co
 | `AUTH_GOOGLE_ID` | Google OAuth web-client ID |
 | `AUTH_GOOGLE_SECRET` | Google OAuth web-client secret |
 | `ALLOW_ALL_GOOGLE_ACCOUNTS` | Set to `true` for public verified-Google sign-in; currently enabled |
-| `ALLOWED_EMAIL_DOMAIN` | Your exact college domain, e.g. `college.edu`; empty for owner-only access |
+| `ALLOWED_EMAIL_DOMAIN` | Optional exact domain, e.g. `college.edu`, used when public sign-in is disabled |
 | `ALLOWED_EMAILS` | Optional exact email allowlist, used when public sign-in is disabled |
 | `ADMIN_EMAILS` | Comma-separated administrator emails that also satisfy the access policy |
 | `SUPPORT_EMAIL` | Public contact address shown on the privacy and participation pages |

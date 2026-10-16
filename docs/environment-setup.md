@@ -13,7 +13,8 @@ Configured on 2026-10-15 using the owner's authenticated Google Cloud and Neon b
 | Google Cloud project | `placement-contest-portal` — dedicated to this application |
 | OAuth app | NST LC Grind (updated for the new branding) |
 | OAuth client | Placement Contest Portal — Local Web; Web application |
-| OAuth audience | External, **Testing**, with the owner added as a test user |
+| OAuth audience | External, **In production**; public Google sign-in enabled |
+| OAuth Branding URLs | App homepage, `/privacy`, and `/terms` on `nst-lc-grind.vercel.app` |
 | JavaScript origins | `http://localhost:3000`, `https://nst-lc-grind.vercel.app` |
 | Callbacks | `http://localhost:3000/api/auth/callback/google`, `https://nst-lc-grind.vercel.app/api/auth/callback/google` |
 | Neon project | `placement-contest-portal` (`dark-rain-32903119`) |
@@ -35,7 +36,7 @@ Initial access was owner-only. The owner subsequently approved **all Google acco
 
 Google must verify the email address, and only the configured Google provider is accepted. Everyone outside `ADMIN_EMAILS` gets the `student` role; public login does not grant administrative access. To add admins later, update the exact email list in Vercel, redeploy, and have those accounts sign in again.
 
-The original restricted model is still supported by disabling public mode and setting the domain/email allowlist. Public access also requires Google OAuth's External audience to be published; the app's home, privacy (`/privacy`), and participation (`/terms`) pages supply the Branding URLs.
+The original restricted model is still supported by disabling public mode and setting the domain/email allowlist. Google OAuth's External audience has now been published, and its **In production** status was confirmed after reloading the console. Branding links point to the live homepage, `/privacy`, and `/terms`. The production OAuth redirect requests only `openid`, `profile`, and `email`.
 
 ## Credential handling
 
@@ -44,6 +45,15 @@ The database URL, Google client ID/secret, `AUTH_SECRET`, and access settings li
 The canonical production domain uses the app's Google access policy. Preview and deployment-specific URLs retain Vercel protection. Vercel secrets are write-only when marked sensitive, so the production configuration was synchronized privately from the known-working local credentials rather than printing or exporting their values.
 
 ## Verified against real services
+
+Public-access release checks:
+
+- `ALLOW_ALL_GOOGLE_ACCOUNTS` is set to the literal string `true` for Production and Preview; the existing `ADMIN_EMAILS` list was preserved.
+- Google Audience is External/In production, rather than Testing.
+- The anonymous sign-in endpoint redirects to Google with the correct production callback and only basic identity scopes.
+- `/privacy` and `/terms` return HTTP 200 without signing in.
+- Anonymous admin requests still return HTTP 401. Database-backed tests confirm non-admin Google registrations get the `student` role and profile-supplied roles are ignored.
+- 69 unit/integration tests, 10 desktop/mobile browser checks, TypeScript, lint, the production build, and GitHub Actions pass.
 
 Production checks completed on 2026-10-16 at **https://nst-lc-grind.vercel.app**:
 
@@ -78,7 +88,7 @@ Use **http://localhost:3000**, matching the registered callback exactly. Google 
 
 The UI/performance update replaced the local development server with the optimized production build. If port 3000 is already serving this app, use it instead of starting a second process. For editing, stop that server and use `npm run dev`.
 
-## Before opening student access
+## Operational checks
 
 - Confirm the External Google audience is published and test a non-admin Google account; it must remain a student.
 - Run the preview load check and volunteer contest against the deployed app.

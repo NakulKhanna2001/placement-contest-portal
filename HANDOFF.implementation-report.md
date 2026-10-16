@@ -7,13 +7,13 @@ Date: 2026-10-15
 - Handoff: [`HANDOFF.md`](HANDOFF.md)
 - Implementation plan: [`docs/superpowers/plans/2026-10-15-weekly-contest-portal.md`](docs/superpowers/plans/2026-10-15-weekly-contest-portal.md)
 - Source of truth: [`docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md`](docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md)
-- **Status:** deployed on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. The contest-editing update adds pre-filled admin forms and audited, revision-checked updates for drafts and future scheduled contests. **61 automated tests pass locally**; the existing browser checks and deployment verification are part of the release checks. Production Google sign-in and submission-triggered archiving remain in place.
+- **Status:** live on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. Public verified-Google sign-in is enabled, with students by default and explicit email-based admin roles. Google Audience is External/**In production**. **69 automated tests and 10 browser checks pass**, along with the build and CI. Contest editing and submission-triggered archiving remain in place.
 
 ## Public Google access update
 
-The owner subsequently approved sign-in for **all verified Google accounts**, with ordinary users assigned `student` and only exact `ADMIN_EMAILS` entries assigned `admin`. `ALLOW_ALL_GOOGLE_ACCOUNTS=true` explicitly enables this mode; restricted domain/email modes still fail closed when the flag is off. Future admins can be added by editing the comma-separated list, redeploying, and signing in again. Public mode does not elevate anyone based on a domain, profile field, or merely registering.
+The owner subsequently approved sign-in for **all verified Google accounts**, superseding the earlier owner-only launch setting. Ordinary users are assigned `student` and only exact `ADMIN_EMAILS` entries are assigned `admin`. `ALLOW_ALL_GOOGLE_ACCOUNTS=true` explicitly enables this mode; restricted domain/email modes still fail closed when the flag is off. Future admins can be added by editing the comma-separated list, redeploying, and signing in again. Public mode does not elevate anyone based on a domain, profile field, or merely registering.
 
-Tests cover arbitrary Google/Workspace email domains, invalid/unverified emails, multiple configured admins, lookalikes, real database user creation, rejection of a profile-supplied admin role, and role synchronization on subsequent sign-ins. **69 unit/integration tests pass**. Public `/privacy` and `/terms` pages and a support contact are provided to complete Google Branding for public OAuth publishing. See the connected-environment notes for the audience state.
+Tests cover arbitrary Google/Workspace email domains, invalid/unverified emails, multiple configured admins, lookalikes, real database user creation, rejection of a profile-supplied admin role, and role synchronization on subsequent sign-ins. **69 unit/integration tests pass**. Public `/privacy` and `/terms` pages and a support contact complete Google Branding. The OAuth app was published and reloaded to confirm External/In production; a live sign-in request uses only `openid profile email` and the correct callback. Anonymous admin requests remain blocked. See the connected-environment notes for details.
 
 The original handoff and plan have been preserved as approved historical documents. Their “no application code” state and unchecked tasks no longer describe the current repository. Begin future work by inspecting this report and the actual code, rather than re-running the scaffold steps.
 
@@ -111,21 +111,21 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 
 | Command/check | Result |
 |---|---|
-| `npm test` | **PASS: 61 tests in 14 files.** Includes the previous coverage plus transactional edits, start/overlap guards, stale revisions, pre-filled forms, local-time preservation, cancellation, and create-flow regression checks. |
+| `npm test` | **PASS: 69 tests in 15 files.** Includes contest editing, public/restricted access policies, verified Google claims, multiple admin emails, default student registration, and role synchronization, in addition to the contest/scoring/moderation coverage. |
 | `npm run typecheck` | **PASS** |
 | `npm run lint` | **PASS** |
 | `npm run build` | **PASS**, production Next.js build with all application/API routes |
 | `npm run db:generate` | **PASS**, no schema drift after initial migration generation |
 | `npm audit --omit=dev` | **PASS**, zero production dependency vulnerabilities reported |
 | `npm run leetcode:smoke -- lee215` | **PASS**, real endpoint returned 20 accepted records with numeric IDs/slugs/dates and an available profile |
-| `PLAYWRIGHT_CHANNEL=chrome npm run test:browser` | **PASS: 8 browser checks**, desktop/mobile navigation, delayed-request feedback, keyboard access, reduced motion, skeletons, setup/error states, no external font requests, and no horizontal overflow. Screenshots were inspected. |
+| `PLAYWRIGHT_CHANNEL=chrome npm run test:browser` | **PASS: 10 browser checks**, including public privacy/rules pages, desktop/mobile navigation, delayed feedback, keyboard access, reduced motion, skeletons, and overflow checks. |
 | Default Playwright browser download | Initially **BLOCKED** by CDN timeout/DNS failure; browser execution succeeded using installed Chrome instead |
 | `git diff --check` | **PASS** |
 | Full `npm audit` | **9 development-only transitive advisories** in ESLint globbing and Drizzle CLI dependencies; compatible upstream remediation still pending. Breaking forced downgrades were not applied. |
 | Managed Postgres `npm run db:migrate` | **PASS** on the new dedicated Neon database; independent SQL inspection confirmed ten tables and one applied migration. |
 | Real Google OAuth callback and signed-in browser walkthrough | **PASS** locally and at `https://nst-lc-grind.vercel.app`: real Google login, database-backed admin session, authenticated admin API 200, and anonymous denial 401. |
 | Hosted cron | **NOT APPLICABLE**: removed for Hobby. Preview load and the volunteer dry run remain operator launch checks. |
-| GitHub Actions execution | **PASS** for the no-cron source update: [run 38866880664](https://github.com/stalin670/NST-LC-GRIND/actions/runs/38866880664) |
+| GitHub Actions execution | **PASS** for public Google access: [run 38894153619](https://github.com/stalin670/NST-LC-GRIND/actions/runs/38894153619) |
 
 ### Acceptance-criteria traceability
 
@@ -162,7 +162,7 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 
 ## Remaining launch requirements
 
-1. Supply the college domain and adjust the Google audience/publishing settings when opening student access; current access is intentionally owner-only.
+1. Public Google sign-in and Google OAuth publication are complete. Manage the explicit admin email list as additional administrators are appointed.
 2. Public deployment and its Google callback are verified. Repeat those checks whenever changing the deployment hostname or credentials.
 3. Monitor submit-endpoint latency, LeetCode lookup failures, and free-plan usage. No scheduler setup is required.
 4. Run the authenticated preview load tool and volunteer dry run described in `docs/runbook.md`, including real student LeetCode linking and contest participation.
