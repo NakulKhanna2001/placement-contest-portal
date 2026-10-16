@@ -44,6 +44,17 @@ The canonical production domain uses the app's Google access policy. Preview and
 
 ## Verified against real services
 
+Production checks completed on 2026-10-16 at **https://nst-lc-grind.vercel.app**:
+
+- Vercel reports the production deployment **Ready**, plan **Hobby**, with an empty cron-definition list.
+- The home page and results page return HTTP 200 without requiring Vercel authentication.
+- `/api/auth/providers` advertises the production Google callback, and the callback is saved in Google Cloud alongside localhost.
+- A real Google sign-in completed on the public domain. The session contains the owner as an authenticated admin; the admin reports API returns HTTP 200.
+- The same admin API returns HTTP 401 anonymously, and the removed cron endpoint returns HTTP 404.
+- GitHub Actions passes the 42-test suite, type checking, lint, production dependency audit, build, and 8 browser checks for the no-cron source update.
+
+Earlier local/database setup checks:
+
 - `npm run db:migrate` applied the initial migration to the dedicated Neon database.
 - Direct Postgres verification confirmed all ten application tables and one migration record.
 - Completed the real Google account chooser and basic profile/email consent flow.

@@ -7,7 +7,7 @@ Date: 2026-10-15
 - Handoff: [`HANDOFF.md`](HANDOFF.md)
 - Implementation plan: [`docs/superpowers/plans/2026-10-15-weekly-contest-portal.md`](docs/superpowers/plans/2026-10-15-weekly-contest-portal.md)
 - Source of truth: [`docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md`](docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md)
-- **Status:** v1 implemented with the NST LC Grind interface and navigation update. The owner approved a no-cron Vercel Hobby deployment at `https://nst-lc-grind.vercel.app`. Verification/archiving is now submission-triggered. **42 automated tests pass** after removal of the obsolete cron authorization test; public-host checks are recorded in the deployment follow-up below.
+- **Status:** live at **https://nst-lc-grind.vercel.app** on Vercel Hobby with **zero cron jobs**. Production Google sign-in, the database-backed admin session, and anonymous API protection are verified. Verification/archiving is submission-triggered. **42 automated tests and 8 browser checks pass**, including GitHub Actions.
 
 The original handoff and plan have been preserved as approved historical documents. Their “no application code” state and unchecked tasks no longer describe the current repository. Begin future work by inspecting this report and the actual code, rather than re-running the scaffold steps.
 
@@ -18,6 +18,8 @@ The owner explicitly requested removal of scheduled polling to use Vercel Hobby.
 The existing checker already fetches and archives the submitting student's entire recent accepted list on an archive miss. Tests now exercise that behavior directly, including the 50-student simulation: a student submits one link per batch, which saves other records for later verification. There are no scheduled requests for other users. Earlier archives, acceptance-time scoring, cooldowns, and the contest-end grace deadline still apply. Students must submit promptly; an acceptance that disappeared before it was ever archived needs admin review.
 
 The existing Vercel `nst-lc-grind` project is on Hobby, with Node 24, Next.js, and `iad1` near Neon. Production environment values are stored privately in Vercel, the canonical auth URL is `https://nst-lc-grind.vercel.app`, and the Google client includes that origin/callback alongside localhost. The unused legacy `next_snapshot_at` column is retained, so no new migration is needed. See `docs/environment-setup.md` for the current hosting configuration.
+
+Production verification completed: Vercel reports Ready/Hobby and no cron definitions; public pages return 200; the old cron endpoint returns 404; anonymous admin requests return 401; the real owner Google login yields an admin session and an authenticated admin API response of 200. The no-cron source update is published to `stalin670/NST-LC-GRIND` and its GitHub Actions run passed. The volunteer contest and load check remain prerequisites for opening broad student access.
 
 ## Environment setup follow-up
 
@@ -107,9 +109,9 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 | `git diff --check` | **PASS** |
 | Full `npm audit` | **9 development-only transitive advisories** in ESLint globbing and Drizzle CLI dependencies; compatible upstream remediation still pending. Breaking forced downgrades were not applied. |
 | Managed Postgres `npm run db:migrate` | **PASS** on the new dedicated Neon database; independent SQL inspection confirmed ten tables and one applied migration. |
-| Real Google OAuth callback and signed-in browser walkthrough | **PASS** at `localhost:3000`: Google account selection/consent, callback, persisted admin user, account/admin pages, authenticated session/admin API, and anonymous denial. Repeat on the eventual public hostname. |
+| Real Google OAuth callback and signed-in browser walkthrough | **PASS** locally and at `https://nst-lc-grind.vercel.app`: real Google login, database-backed admin session, authenticated admin API 200, and anonymous denial 401. |
 | Hosted cron | **NOT APPLICABLE**: removed for Hobby. Preview load and the volunteer dry run remain operator launch checks. |
-| GitHub Actions execution | Workflow authored; **NOT RUN remotely** in this session |
+| GitHub Actions execution | **PASS** for the no-cron source update: [run 38866880664](https://github.com/stalin670/NST-LC-GRIND/actions/runs/38866880664) |
 
 ### Acceptance-criteria traceability
 
@@ -147,7 +149,7 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 ## Remaining launch requirements
 
 1. Supply the college domain and adjust the Google audience/publishing settings when opening student access; current access is intentionally owner-only.
-2. Deploy publicly, supply private environment settings there, and register/verify the deployment's HTTPS Google callback. Local real login and managed Postgres are already verified.
+2. Public deployment and its Google callback are verified. Repeat those checks whenever changing the deployment hostname or credentials.
 3. Monitor submit-endpoint latency, LeetCode lookup failures, and free-plan usage. No scheduler setup is required.
 4. Run the authenticated preview load tool and volunteer dry run described in `docs/runbook.md`, including real student LeetCode linking and contest participation.
 5. Resolve owner choices for retention and license. No automatic pruning or license assumption was introduced.

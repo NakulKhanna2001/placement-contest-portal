@@ -1,11 +1,13 @@
 # NST LC Grind
 
+**Live app:** [nst-lc-grind.vercel.app](https://nst-lc-grind.vercel.app)
+
 A portal for running a **weekly Saturday coding contest** for college placement prep. Students solve real LeetCode problems, paste their submission links, and are ranked on a live leaderboard. Cheating is policed by the community through reports with proof, reviewed by admins.
 
 The interface uses a persistent workspace, responsive navigation, and page-specific skeletons. See [UI and navigation notes](docs/ui-performance.md) for the design, performance changes, and measured results.
 
 > **Status: v1 implemented and locally verified.**
-> Includes the student portal, account verification, contest scheduling, live leaderboard, admin grants/rescoring, reports, and results. **Vercel Hobby compatible: no cron jobs.** Accepted records are saved when a student submits a link. Owner-only Google access is retained for initial testing. See the [connected environment](docs/environment-setup.md), [Setup](#setup), and the [implementation report](HANDOFF.implementation-report.md).
+> Deployed on **Vercel Hobby with no cron jobs**. Production Google sign-in and the database-backed admin session are verified. Accepted records are saved when a student submits a link. Owner-only Google access is retained for initial testing. See the [connected environment](docs/environment-setup.md), [Setup](#setup), and the [implementation report](HANDOFF.implementation-report.md).
 
 ## How a contest works
 
