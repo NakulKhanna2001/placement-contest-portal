@@ -1,18 +1,22 @@
 # Setup and contest-day runbook
 
-The current workspace already has working Neon and Google OAuth settings. See [Connected environment](environment-setup.md) for resources and real-service verification. Initial access is owner-only by explicit request.
+The current workspace already has working Neon and Google OAuth settings. See [Connected environment](environment-setup.md) for resources and real-service verification. The owner subsequently approved public Google sign-in, with students as the default role and explicit email-based admin access.
 
 ## Initial setup
 
 1. Use Node 24 (`nvm use`) and install with `npm ci`.
 2. Provision a Postgres database. Put its connection URL and the authentication settings listed in the README in `.env.local` for local development, or the deployment's secret environment settings.
 3. Run `npm run db:migrate` against the intended database. The migrations are also exercised on a clean PGlite database by the test suite. Back up an existing database before applying migrations to it.
-4. Configure a Google OAuth **Web application** client with redirect URI `http://localhost:3000/api/auth/callback/google` locally and `https://YOUR_HOST/api/auth/callback/google` in the deployment. Use the real college domain for `ALLOWED_EMAIL_DOMAIN`, or leave it empty and use `ALLOWED_EMAILS` for an exact owner/tester allowlist. Google must return `email_verified: true`.
-5. Add administrator email addresses to `ADMIN_EMAILS` (comma separated; they must also satisfy the domain/explicit-email access policy). On Google sign-in, the matching user is created/upserted and the role is synchronized with this list. Changes to this list take effect when that user signs in again. Existing sessions read roles from the database on each request.
+4. Configure a Google OAuth **Web application** client with redirect URI `http://localhost:3000/api/auth/callback/google` locally and `https://YOUR_HOST/api/auth/callback/google` in the deployment. Set `ALLOW_ALL_GOOGLE_ACCOUNTS=true` for public sign-in. With that flag disabled, `ALLOWED_EMAIL_DOMAIN` and `ALLOWED_EMAILS` provide restricted access. Google must return `email_verified: true`. Complete Google Branding with the app home page, `/privacy`, and `/terms`, then publish the External OAuth app for public access.
+5. Add administrator email addresses to `ADMIN_EMAILS` (comma separated; they must also satisfy the current sign-in policy). On Google sign-in, the matching user is created/upserted and the role is synchronized with this list. Changes to this list take effect when that user signs in again. Existing sessions read roles from the database on each request.
 6. Generate a high-entropy `AUTH_SECRET` (for example, `openssl rand -base64 32`). Keep its value out of Git. No cron secret is needed.
 7. Run `npm run dev`, sign in, and verify a LeetCode account in `/account` using the bio token. The account becomes permanently linked. Students must finish this **before** the contest starts.
 
 No real credentials are needed for `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, or the public browser smoke tests.
+
+### Adding two or three administrators later
+
+In Vercel → project **Settings → Environment Variables**, edit `ADMIN_EMAILS` to contain the owner's address and the additional exact Google email addresses, separated by commas. Redeploy, then have those users sign out and sign in again. Public registration does not itself grant admin privileges. Removing an address demotes it on its next sign-in; for immediate revocation of an active admin, update the existing database role as well through a controlled administrative operation.
 
 ## Deployment
 
@@ -107,7 +111,7 @@ Optional knobs: `LOAD_CONCURRENCY` (1–200), `LOAD_SECONDS` (1–300). The scri
 
 Use ten students and a normal three-hour test contest. Keep the settled one-hour windows; automated tests use injected time to cover boundaries quickly.
 
-1. Verify Google sign-in accepts the college domain and rejects another domain.
+1. Verify a new Google account can sign in as a student, an unverified email is rejected, and ordinary students cannot access admin APIs.
 2. Verify ownership; confirm an account cannot be swapped or claimed by a second portal account.
 3. Leave the page open across contest start and batch unlock. Confirm no future problem names/links are in the earlier HTML or student API responses.
 4. Submit an accepted solve inside the window. Confirm its bonus and points, then watch leaderboard updates.

@@ -65,6 +65,12 @@ main, .workspace { min-width: 0; }
 .heading-aside { flex-shrink: 0; }
 .site-footer { max-width: 1080px; padding: 20px 0; margin: auto; display: flex; gap: 14px; justify-content: space-between; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 .site-footer > a { display: flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; }
+.site-footer { flex-wrap: wrap; }
+.footer-links { display: flex; gap: 16px; }
+.footer-links a { color: var(--muted); text-decoration: none; }
+.footer-links a:hover { color: var(--accent); text-decoration: underline; }
+.policy-content h2:not(:first-child) { margin-top: 28px; }
+.policy-content p { color: var(--muted); }
 
 /* The next action comes first. Rules and occasional tools are disclosures. */
 .welcome { padding: 12px 0 32px; }

@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </div></header>
     <div className="workspace">
       <div id="content" className="shell" tabIndex={-1}>{children}</div>
-      <footer className="site-footer"><span>NST LC Grind</span><a href="https://leetcode.com" target="_blank" rel="noreferrer">Problems on LeetCode <Icon name="external" size={12} /></a></footer>
+      <footer className="site-footer"><span>NST LC Grind</span><div className="footer-links"><Link href="/privacy">Privacy</Link><Link href="/terms">Rules</Link></div><a href="https://leetcode.com" target="_blank" rel="noreferrer">Problems on LeetCode <Icon name="external" size={12} /></a></footer>
     </div>
   </body></html>;
 }

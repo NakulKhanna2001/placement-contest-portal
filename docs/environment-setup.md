@@ -26,15 +26,16 @@ No existing application's cloud project or database was repurposed. No Google Cl
 
 ## Access decision
 
-The owner explicitly chose **“Only my account”** for initial access. The private environment therefore has:
+Initial access was owner-only. The owner subsequently approved **all Google accounts as students**, with additional administrators to be appointed explicitly later. The current application configuration is:
 
-- `ALLOWED_EMAILS`: the owner's exact Google email address.
-- `ADMIN_EMAILS`: the same address.
-- `ALLOWED_EMAIL_DOMAIN`: empty, so student-domain access remains closed.
+- `ALLOW_ALL_GOOGLE_ACCOUNTS=true`: any verified Google account may sign in.
+- `ADMIN_EMAILS`: only the owner's address for now; comma-separated additional addresses are supported.
+- `ALLOWED_EMAILS` / `ALLOWED_EMAIL_DOMAIN`: retained as optional restricted-mode settings, ignored as restrictions while public mode is enabled.
+- `SUPPORT_EMAIL`: the public support contact used by the privacy and participation pages.
 
-An email being listed in `ADMIN_EMAILS` alone does **not** allow sign-in. It must also satisfy the domain or explicit-email access policy. Other Gmail accounts are not admitted.
+Google must verify the email address, and only the configured Google provider is accepted. Everyone outside `ADMIN_EMAILS` gets the `student` role; public login does not grant administrative access. To add admins later, update the exact email list in Vercel, redeploy, and have those accounts sign in again.
 
-The original college-domain model is still supported. When the college domain is supplied, set `ALLOWED_EMAIL_DOMAIN` to the exact domain; keep or remove the explicit owner exception as desired. OAuth is also in Testing mode: add intended test users there, or complete the appropriate Google publishing setup before opening access to students.
+The original restricted model is still supported by disabling public mode and setting the domain/email allowlist. Public access also requires Google OAuth's External audience to be published; the app's home, privacy (`/privacy`), and participation (`/terms`) pages supply the Branding URLs.
 
 ## Credential handling
 
@@ -73,13 +74,13 @@ npm run build
 npm run start -- --hostname localhost
 ```
 
-Use **http://localhost:3000**, matching the registered callback exactly. Sign in with the configured owner account, then visit `/admin` or `/account`.
+Use **http://localhost:3000**, matching the registered callback exactly. Google users can visit `/account`; configured administrators can also visit `/admin`.
 
 The UI/performance update replaced the local development server with the optimized production build. If port 3000 is already serving this app, use it instead of starting a second process. For editing, stop that server and use `npm run dev`.
 
 ## Before opening student access
 
-- Supply the college domain or intended email allowlist and adjust Google audience/publishing settings.
+- Confirm the External Google audience is published and test a non-admin Google account; it must remain a student.
 - Run the preview load check and volunteer contest against the deployed app.
 - Ask students to submit accepted links promptly. There is no periodic polling to rescue submissions that disappear from LeetCode's latest 20 before they have ever been archived.
 

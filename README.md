@@ -7,7 +7,7 @@ A portal for running a **weekly Saturday coding contest** for college placement 
 The interface uses a persistent workspace, responsive navigation, and page-specific skeletons. See [UI and navigation notes](docs/ui-performance.md) for the design, performance changes, and measured results.
 
 > **Status: v1 implemented and locally verified.**
-> Deployed on **Vercel Hobby with no cron jobs**. Production Google sign-in and the database-backed admin session are verified. Accepted records are saved when a student submits a link. Owner-only Google access is retained for initial testing. See the [connected environment](docs/environment-setup.md), [Setup](#setup), and the [implementation report](HANDOFF.implementation-report.md).
+> Deployed on **Vercel Hobby with no cron jobs**. Verified Google accounts can join as students; administrator access is limited to the configured admin email list. Accepted records are saved when a student submits a link. See the [connected environment](docs/environment-setup.md), [Setup](#setup), and the [implementation report](HANDOFF.implementation-report.md).
 
 ## How a contest works
 
@@ -43,7 +43,7 @@ Maximum score is 63 base, or 94.5 if every solve earns the bonus.
 
 - **Next.js 16 / React 19** (App Router, TypeScript), ready for **Vercel**
 - **Postgres** with **Drizzle ORM** (in-memory **PGlite** for tests)
-- **Auth.js** with verified Google login, an exact college-domain restriction, and optional explicit-email access; currently configured for the owner only
+- **Auth.js** with verified Google login, public student access, and an explicit admin email list; optional restricted-access modes are also supported
 - **Vitest** for rules, integration, and route tests; **Playwright** for desktop/mobile browser smoke tests
 - **Zod** for request and upstream response validation
 
@@ -69,9 +69,11 @@ Open **http://localhost:3000**. This workspace now has a private `.env.local` co
 | `AUTH_URL` | Canonical app URL; `http://localhost:3000` locally, the HTTPS app URL when self-hosted publicly |
 | `AUTH_GOOGLE_ID` | Google OAuth web-client ID |
 | `AUTH_GOOGLE_SECRET` | Google OAuth web-client secret |
+| `ALLOW_ALL_GOOGLE_ACCOUNTS` | Set to `true` for public verified-Google sign-in; currently enabled |
 | `ALLOWED_EMAIL_DOMAIN` | Your exact college domain, e.g. `college.edu`; empty for owner-only access |
-| `ALLOWED_EMAILS` | Optional comma-separated exact email allowlist; currently just the owner |
+| `ALLOWED_EMAILS` | Optional exact email allowlist, used when public sign-in is disabled |
 | `ADMIN_EMAILS` | Comma-separated administrator emails that also satisfy the access policy |
+| `SUPPORT_EMAIL` | Public contact address shown on the privacy and participation pages |
 
 Generate secrets with `openssl rand -base64 32`. No `.env*` files belong in Git.
 
@@ -82,12 +84,14 @@ npm run db:migrate
 npm run dev
 ```
 
-1. Sign in with an allowed Google account. This workspace currently admits only the owner.
+1. Sign in with a verified Google account. New users become students unless explicitly listed in `ADMIN_EMAILS`.
 2. Visit `/account`, put the verification code in your LeetCode bio, and confirm ownership **before the contest starts**.
 3. As an administrator, visit `/admin` to schedule or draft a contest, manage grants, review reports, and inspect the audit trail.
 4. Students use `/` during a contest and `/results` afterward.
 
 **Editing:** In `/admin`, expand an existing contest, select **Edit contest**, make changes, and select **Save changes**. Drafts and future scheduled contests are editable; started contests are locked. The editor displays the start time in your local timezone and records changes in the audit log.
+
+**Adding administrators:** Update `ADMIN_EMAILS` in Vercel with comma-separated email addresses, preserving the existing owner address, then redeploy. Those accounts receive admin access on their next Google sign-in. Everyone else remains a student. Never use a domain or wildcard in this list.
 
 `vercel.json` uses the Next.js preset and the `iad1` region near the Neon database. It defines **zero cron jobs** and works on Vercel Hobby. See the [runbook](docs/runbook.md) for deployment details.
 
@@ -135,7 +139,7 @@ For further development, read the [implementation report](HANDOFF.implementation
 - **LeetCode's GraphQL endpoint is unofficial.** It may change or throttle. It is isolated in one module, and admin grants are the fallback. Run `npm run leetcode:smoke -- USERNAME` before each contest.
 - **The recent-accepted list is capped at 20.** Submit links promptly. Without periodic snapshots, an acceptance that has already scrolled off the public list and was never saved cannot be verified automatically; an admin grant with evidence is the fallback. The link deadline and acceptance-window rules are unchanged.
 - **Run the preview load check and volunteer dry run before opening student access.** Normal HTTP/function/database usage still counts toward the hosting plan's limits.
-- **Google access is initially owner-only.** Supply the college domain and adjust the Google audience before opening it to students.
+- **Google publishing and app access are separate settings.** Public access requires the Vercel flag plus an External/In-production Google OAuth audience. `/privacy` and `/terms` are public pages for the consent-screen configuration.
 
 ## Contributing
 

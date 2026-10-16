@@ -71,3 +71,11 @@ test("account skeleton matches the layout and disables shimmer for reduced motio
   await page.emulateMedia({ reducedMotion: "reduce" });
   expect(await loading.locator(".skeleton").first().evaluate(element => getComputedStyle(element, "::after").animationName)).toBe("none");
 });
+
+test("privacy and participation information is available without signing in", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "Privacy", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Privacy policy", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Rules", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Participation rules", exact: true })).toBeVisible();
+});

@@ -9,6 +9,12 @@ Date: 2026-10-15
 - Source of truth: [`docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md`](docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md)
 - **Status:** deployed on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. The contest-editing update adds pre-filled admin forms and audited, revision-checked updates for drafts and future scheduled contests. **61 automated tests pass locally**; the existing browser checks and deployment verification are part of the release checks. Production Google sign-in and submission-triggered archiving remain in place.
 
+## Public Google access update
+
+The owner subsequently approved sign-in for **all verified Google accounts**, with ordinary users assigned `student` and only exact `ADMIN_EMAILS` entries assigned `admin`. `ALLOW_ALL_GOOGLE_ACCOUNTS=true` explicitly enables this mode; restricted domain/email modes still fail closed when the flag is off. Future admins can be added by editing the comma-separated list, redeploying, and signing in again. Public mode does not elevate anyone based on a domain, profile field, or merely registering.
+
+Tests cover arbitrary Google/Workspace email domains, invalid/unverified emails, multiple configured admins, lookalikes, real database user creation, rejection of a profile-supplied admin role, and role synchronization on subsequent sign-ins. **69 unit/integration tests pass**. Public `/privacy` and `/terms` pages and a support contact are provided to complete Google Branding for public OAuth publishing. See the connected-environment notes for the audience state.
+
 The original handoff and plan have been preserved as approved historical documents. Their “no application code” state and unchecked tasks no longer describe the current repository. Begin future work by inspecting this report and the actual code, rather than re-running the scaffold steps.
 
 ## Vercel Hobby / no-cron update (owner-approved 2026-10-16)
