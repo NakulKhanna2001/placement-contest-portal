@@ -24,13 +24,22 @@ describe("HTTP boundaries", () => {
     expect((await reports()).status).toBe(403);
   });
   it("validates malformed JSON, forged decisions, dates, and wrong origins", async () => {
-    auth.mockResolvedValue({ user: { id: 1, role: "admin" } });
+    auth.mockResolvedValue({ user: { id: 1, role: "admin", leetcodeVerified: true } });
     expect((await submit(request("{"))).status).toBe(400);
     expect((await submit(request("{}", { origin: "https://evil.test" }))).status).toBe(403);
     expect((await review(request(JSON.stringify({ reportId: 1, decision: { kind: "anything" } })))).status).toBe(400);
     expect((await grant(request(JSON.stringify({ action: "grant", userIds: [1], problemId: 1, acceptedAt: "invalid", reason: "r", evidence: "https://example.com" })))).status).toBe(400);
     await expect(readBody(request("{}", { "content-type": "text/plain" }), z.object({}))).rejects.toMatchObject({ status: 415 });
     await expect(readBody(request("x".repeat(50001)), z.object({}))).rejects.toMatchObject({ status: 413 });
+  });
+  it.each(["student", "admin"])("blocks direct contest APIs for an unverified %s", async role => {
+    auth.mockResolvedValue({ user: { id: 1, role, leetcodeVerified: false } });
+    expect((await submit(request(JSON.stringify({ link: "https://leetcode.com/submissions/detail/1/" })))).status).toBe(403);
+    expect((await report(request())).status).toBe(403);
+    expect((await leaderboard(new Request("https://portal.test/api/leaderboard?contestId=1"))).status).toBe(403);
+    // Linking must remain available before verification; an invalid action is a
+    // validation error, rather than the contest-access denial above.
+    expect((await linkAccount(request(JSON.stringify({ action: "invalid" })))).status).toBe(400);
   });
   it("requires a complete edit contract and never turns unknown actions into new contests", async () => {
     auth.mockResolvedValue({ user: { id: 1, role: "admin" } });

@@ -38,6 +38,10 @@ Google must verify the email address, and only the configured Google provider is
 
 The original restricted model is still supported by disabling public mode and setting the domain/email allowlist. Google OAuth's External audience has now been published, and its **In production** status was confirmed after reloading the console. Branding links point to the live homepage, `/privacy`, and `/terms`. The production OAuth redirect requests only `openid`, `profile`, and `email`.
 
+Google sign-in alone does not grant participant access to contests. A username plus a valid LeetCode verification timestamp is required for contest pages, detailed results, leaderboard reads, submissions, and reports. The session's verification flag is derived from the current database record, not a persisted JWT claim. Account verification remains available before this gate; administrative management continues to use the admin role.
+
+All portal time displays and date/time inputs use IST (`Asia/Kolkata`). Existing stored instants and contest windows are not shifted.
+
 ## Credential handling
 
 The database URL, Google client ID/secret, `AUTH_SECRET`, and access settings live in private `.env.local` locally and Vercel's project environment variables for deployment. The local file is ignored and has permissions `0600`; `.vercelignore` also excludes it from deployment uploads. Local `AUTH_URL` remains `http://localhost:3000`; Vercel uses `https://nst-lc-grind.vercel.app`. Secret values are not recorded in documentation, tests, or Git. The old cron secret is no longer used.

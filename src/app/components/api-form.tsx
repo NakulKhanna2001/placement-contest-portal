@@ -13,7 +13,7 @@ const messages: Record<string, string> = {
   already_solved: "An equal or earlier solve already counts for this problem, or the solve was revoked by an admin.",
   lookup_failed: "LeetCode is not responding. Try again in a minute; contact an admin with proof if the outage continues.",
   disqualified: "You have been disqualified from this contest. Contact an admin for details.",
-  token_missing: "The code was not found in your LeetCode bio. Save the bio, then retry.",
+  token_missing: "The code was not found in your LeetCode ReadMe. Save it in your profile settings, then retry.",
   no_token: "Get your verification code first.",
   user_not_found: "That LeetCode username was not found.",
   username_taken: "That LeetCode account is already linked to another student.",

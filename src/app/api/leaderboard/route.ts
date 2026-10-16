@@ -2,9 +2,9 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { contests } from "@/db/schema";
 import { cachedBoard } from "@/services/cached-board";
-import { currentUser, endpoint, HttpError } from "@/lib/http";
+import { currentParticipant, endpoint, HttpError } from "@/lib/http";
 export function GET(req: Request) { return endpoint(async () => {
-  await currentUser();
+  await currentParticipant();
   const id = Number(new URL(req.url).searchParams.get("contestId"));
   if (!Number.isSafeInteger(id) || id <= 0) throw new HttpError(400, "Invalid contest ID.");
   const [contest] = await getDb().select().from(contests).where(eq(contests.id, id));

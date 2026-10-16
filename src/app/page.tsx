@@ -13,6 +13,8 @@ import { AutoRefresh } from "./components/auto-refresh";
 import { PageHeader } from "./components/page-header";
 import { Icon } from "./components/ui-icon";
 import { LocalDateTime } from "./components/local-date-time";
+import { VerificationRequired } from "./components/verification-required";
+import { hasVerifiedLeetCode } from "@/lib/contest-access";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +57,7 @@ export default async function Home() {
     {!configured && <section className="notice setup-notice"><Icon name="admin" /><div><h2>Finish local setup</h2><p>Add your Postgres and Google OAuth settings to <code>.env.local</code>, then run <code>npm run db:migrate</code>. The README has the complete setup.</p></div></section>}
   </main>;
 
+  if (!hasVerifiedLeetCode(viewer)) return <VerificationRequired />;
   const catalog = await getContestCatalog();
   const now = new Date();
   const contest = catalog.find(c => c.startsAt <= now && +now <= +c.endsAt + c.graceSeconds * 1000);
@@ -103,7 +106,7 @@ export default async function Home() {
       <div className="stat highlight"><span>Your score</span><strong>{board.find(r => r.userId === viewer.id)?.points ?? 0}<small>pts</small></strong></div>
     </div>
     <div className="columns"><div>
-      {viewer.leetcodeVerifiedAt && viewer.leetcodeVerifiedAt <= contest.startsAt ? <SubmitForm /> : <p className="notice">Your LeetCode account must be verified before the contest starts. <Link href="/account">Link your account</Link> for the next contest.</p>}
+      {viewer.leetcodeVerifiedAt <= contest.startsAt ? <SubmitForm /> : <p className="notice">Your profile was verified after this contest started. You can participate in the next contest.</p>}
       {batchList.map(b => <section className={`card batch-card ${b.unlockAt > now ? "locked" : ""}`} key={b.id}>
         <div className="section-head"><div><h2>Batch {b.position + 1}</h2><p className="status-line"><LocalDateTime value={b.unlockAt.toISOString()} timeOnly /> — <LocalDateTime value={b.closesAt.toISOString()} timeOnly /></p></div><span className={`badge ${b.closesAt < now || b.unlockAt > now ? "neutral" : ""}`}>{b.unlockAt > now ? "Locked" : b.closesAt < now ? "Closed" : "Open"}</span></div>
         {b.unlockAt > now ? <div className="locked-message"><Icon name="lock" /><p>Four problems. One hour.<br /><span>Problems appear when this batch unlocks.</span></p></div> : list.filter(p => p.batchPosition === b.position).map(p => {

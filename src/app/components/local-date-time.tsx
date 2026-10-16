@@ -1,16 +1,7 @@
-"use client";
+import { formatIndiaDateTime } from "@/lib/india-time";
 
-import { useMemo, useSyncExternalStore } from "react";
-const subscribe = () => () => {};
-
-export function LocalDateTime({ value, timeOnly = false }: { value: string; timeOnly?: boolean }) {
-  const date = new Date(value);
-  const formatter = useMemo(() => new Intl.DateTimeFormat(undefined, {
-    ...(timeOnly ? {} : { weekday: "short", day: "numeric", month: "short", year: "numeric" } as const),
-    hour: "numeric", minute: "2-digit", timeZoneName: "short",
-  }), [timeOnly]);
-  // SSR and the first hydration pass share UTC text. The browser then uses its
-  // own timezone without changing the underlying instant or any server gates.
-  const label = useSyncExternalStore(subscribe, () => formatter.format(date), () => timeOnly ? `${date.toISOString().slice(11, 16)} UTC` : date.toUTCString());
-  return <time dateTime={value} title={date.toUTCString()}>{label}</time>;
+// The portal's local timezone is always India Standard Time, on both server and
+// client. Keep the machine-readable instant while showing no UTC fallback/tooltip.
+export function LocalDateTime({ value, timeOnly = false, seconds = false }: { value: string; timeOnly?: boolean; seconds?: boolean }) {
+  return <time dateTime={value} title={formatIndiaDateTime(value, false, true)}>{formatIndiaDateTime(value, timeOnly, seconds)}</time>;
 }

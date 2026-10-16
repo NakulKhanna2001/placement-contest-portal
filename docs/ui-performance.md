@@ -8,6 +8,8 @@ The visual system uses light neutral surfaces, readable typography, a restrained
 
 The home screen prioritizes sign-in or the next contest. The decorative timer panel, slogans, and duplicate instruction cards have been removed. Rules are available in a native expandable section; linking guidance is a short three-step flow. Account details use a single column, empty results states are concise, and occasional admin tools/activity stay collapsed until needed. The solve-submission form is above the problem list during a live contest. Existing prefetching, loading feedback, skeletons, and data-fetching optimizations are retained.
 
+Contest entry now requires a verified LeetCode profile. Unverified signed-in users see an Account-page verification link instead of problem sets or standings; the same constraint is checked on participant APIs. All time displays and inputs use IST, independent of the device timezone, with deterministic server-rendered text rather than a UTC fallback.
+
 System fonts eliminate the previous render-blocking Google Fonts CSS import and font downloads. Icons are small inline SVGs. Loading animations use CSS rather than an animation dependency, and respect `prefers-reduced-motion`.
 
 ## Navigation changes
@@ -27,7 +29,7 @@ All solve windows, deadlines, scoring, ownership, and admin authorization remain
 
 ## Observed authenticated navigation
 
-Compared production builds in the owner's existing Chrome session against the same live Neon database. These are local observations, not deployment capacity guarantees. The database currently has the configured owner and no scheduled contests.
+Compared production builds in the owner's existing Chrome session against the same live Neon database. These are local observations, not deployment capacity guarantees. At the time of these measurements, the database had the configured owner and no scheduled contests.
 
 | Route | Original content ready | Updated content ready |
 |---|---:|---:|

@@ -8,6 +8,13 @@ export async function currentUser(admin = false) {
   if (admin && user.role !== "admin") throw new HttpError(403, "Admin access required.");
   return user;
 }
+export async function currentParticipant() {
+  const user = await currentUser();
+  // Auth.js derives this flag from the current database record on every session
+  // read, rather than trusting a claim persisted in the JWT or supplied by a client.
+  if (user.leetcodeVerified !== true) throw new HttpError(403, "Verify your LeetCode profile on the Account page before entering contests.");
+  return user;
+}
 export async function readBody<T>(req: Request, schema: z.ZodType<T>): Promise<T> {
   if (req.headers.get("origin") && req.headers.get("origin") !== new URL(req.url).origin) throw new HttpError(403, "Invalid request origin.");
   if (!req.headers.get("content-type")?.startsWith("application/json")) throw new HttpError(415, "Expected application/json.");

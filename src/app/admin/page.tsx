@@ -9,6 +9,7 @@ import { PageHeader } from "../components/page-header";
 import { ContentSkeleton } from "../components/skeleton";
 import { Icon } from "../components/ui-icon";
 import { LocalDateTime } from "../components/local-date-time";
+import { auditDetailsInIST } from "@/lib/india-time";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin" };
@@ -43,7 +44,7 @@ async function AdminWorkspace() {
     </div>
     <div className="columns admin-columns"><div>
       <section className="card"><div className="section-head"><h2>Contest scheduling</h2><Icon name="arena" /></div>
-        <details className="create-contest-details"><summary>Create a new contest <span>+</span></summary><p className="muted">Each batch lasts one hour. Local start times are converted to UTC.</p><ScheduleForm /></details>
+        <details className="create-contest-details"><summary>Create a new contest <span>+</span></summary><p className="muted">Each batch lasts one hour. Enter all times in India Standard Time (IST).</p><ScheduleForm /></details>
         <h3 className="subsection-title">Scheduled & draft contests</h3>
         {cs.map(c => <details className="contest-details" key={c.id}>
           <summary><span>{c.title}</span><span className="badge neutral">{c.status === "draft" ? "Draft" : c.endsAt < now ? "Ended" : c.startsAt > now ? "Scheduled" : "Live"}</span></summary>
@@ -68,7 +69,7 @@ async function AdminWorkspace() {
       <section className="card"><details><summary>Rescore a contest</summary><p className="muted">Recompute points from the recorded times. Revoked solves stay revoked.</p><RescoreForm contests={cs.map(c => ({ id: c.id, label: c.title }))} /></details></section>
     </aside></div>
     <details className="card audit-card"><summary>Recent admin activity</summary><p className="muted">The latest 100 changes. Full history is retained in the database.</p>
-      {audits.length ? <div className="table-wrap"><table><thead><tr><th>When (UTC)</th><th>Admin</th><th>Action / target</th><th>Details</th></tr></thead><tbody>{audits.map(a => <tr key={a.id}><td className="mono">{a.createdAt.toISOString()}</td><td>{a.actorId ? studentName(a.actorId) : "System"}</td><td>{a.action}<br /><span className="muted">{a.target}</span></td><td><details><summary>View</summary><pre>{a.details || "No additional details"}</pre></details></td></tr>)}</tbody></table></div> : <div className="empty-inline"><Icon name="admin" /><p>No administrative changes recorded yet.</p></div>}
+      {audits.length ? <div className="table-wrap"><table><thead><tr><th>When (IST)</th><th>Admin</th><th>Action / target</th><th>Details</th></tr></thead><tbody>{audits.map(a => <tr key={a.id}><td><LocalDateTime value={a.createdAt.toISOString()} seconds /></td><td>{a.actorId ? studentName(a.actorId) : "System"}</td><td>{a.action}<br /><span className="muted">{a.target}</span></td><td><details><summary>View</summary><pre>{a.details ? auditDetailsInIST(a.details) : "No additional details"}</pre></details></td></tr>)}</tbody></table></div> : <div className="empty-inline"><Icon name="admin" /><p>No administrative changes recorded yet.</p></div>}
     </details>
   </div>;
 }

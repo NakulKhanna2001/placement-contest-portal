@@ -10,7 +10,7 @@ The current workspace already has working Neon and Google OAuth settings. See [C
 4. Configure a Google OAuth **Web application** client with redirect URI `http://localhost:3000/api/auth/callback/google` locally and `https://YOUR_HOST/api/auth/callback/google` in the deployment. Set `ALLOW_ALL_GOOGLE_ACCOUNTS=true` for public sign-in. With that flag disabled, `ALLOWED_EMAIL_DOMAIN` and `ALLOWED_EMAILS` provide restricted access. Google must return `email_verified: true`. Complete Google Branding with the app home page, `/privacy`, and `/terms`, then publish the External OAuth app for public access.
 5. Add administrator email addresses to `ADMIN_EMAILS` (comma separated; they must also satisfy the current sign-in policy). On Google sign-in, the matching user is created/upserted and the role is synchronized with this list. Changes to this list take effect when that user signs in again. Existing sessions read roles from the database on each request.
 6. Generate a high-entropy `AUTH_SECRET` (for example, `openssl rand -base64 32`). Keep its value out of Git. No cron secret is needed.
-7. Run `npm run dev`, sign in, and verify a LeetCode account in `/account` using the bio token. The account becomes permanently linked. Students must finish this **before** the contest starts.
+7. Run `npm run dev`, sign in, and verify a LeetCode account in `/account` using the code in **ReadMe** under LeetCode profile settings. The account becomes permanently linked. Contest pages, standings, submissions, and reports require a verified profile. Students must finish verification **before** the contest starts to submit solves.
 
 No real credentials are needed for `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, or the public browser smoke tests.
 
@@ -29,14 +29,14 @@ In Vercel → project **Settings → Environment Variables**, edit `ADMIN_EMAILS
 ## Before each contest
 
 1. Run `npm run leetcode:smoke -- REAL_USERNAME`. Expect at most 20 records with numeric IDs, slugs, valid dates, and an available profile. This makes two public API requests.
-2. In `/admin`, schedule three batches by default. Each batch requires **2 Easy, 1 Medium, 1 Hard**, with unique problem slugs across the contest. Prefer less familiar problems. Times entered by an admin are local browser time; stored timestamps and displayed contest windows are UTC.
+2. In `/admin`, schedule three batches by default. Each batch requires **2 Easy, 1 Medium, 1 Hard**, with unique problem slugs across the contest. Prefer less familiar problems. Enter and read all times in **India Standard Time (IST)**, regardless of browser timezone. The application converts inputs to absolute timestamps for storage and scoring.
 3. Confirm the start, end, link deadline, and per-contest bonus/grace settings. Scheduling rejects overlap with another published contest **including its grace period**.
 4. Save as a draft while preparing; publish before the start. Draft problems are never exposed by student endpoints.
 5. Remind students to finish ownership verification before the start and paste links promptly even though linking stays open through grace.
 
 ## Editing an existing contest
 
-In `/admin`, expand the contest under **Scheduled & draft contests**, then choose **Edit contest**. The form is pre-filled with its title, local start time, status, scoring settings, batch count, and problems. Change the fields and select **Save changes**, or use **Cancel editing** to discard local edits.
+In `/admin`, expand the contest under **Scheduled & draft contests**, then choose **Edit contest**. The form is pre-filled with its title, IST start time, status, scoring settings, batch count, and problems. Change the fields and select **Save changes**, or use **Cancel editing** to discard local edits.
 
 - Drafts can be edited even if their old start time has passed, but a future start is required when saving.
 - Published/scheduled contests can be edited only before their original start. Live, grace-period, and finished contests are locked; changing the requested start does not bypass that rule.
@@ -71,7 +71,7 @@ The `0001` migration adds a `revision` counter to existing contests with a defau
 
 - `/results` lists completed published contests. Detailed results and reports require Google sign-in.
 - Completed results include all contest problems for practice even when the leaderboard is empty. New acceptances after a batch closes cannot earn points. When a contest is still running, use **Open contest** to return to the live problem page.
-- Displayed contest times use the viewer's local timezone after hydration, with a UTC tooltip/fallback. Server timestamps still control release and scoring.
+- All displayed contest times and tooltips use IST immediately, including server rendering. Scheduling and manual-grant input values also mean IST. Server timestamps still control release and scoring.
 - Results are provisional through grace. After the link deadline, student submissions close, while audited administrator corrections remain possible.
 - Students can inspect each participant's solve times and manual/revoked status. Disqualified users are excluded from rankings; their solve records remain visible with a disqualification label. Source code is never stored or displayed.
 - Reports require an evidence URL and description. One report per reporter/target/contest is allowed. Admins can dismiss, revoke a solve belonging to the reported participant and contest (and reported problem, when specified), or disqualify. A reviewed report cannot be decided a second time.

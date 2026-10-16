@@ -9,6 +9,7 @@ vi.mock("@/db", () => ({ getDb }));
 import "@/auth";
 import { createTestDb, closeTestDbs } from "@/db/test-db";
 import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 beforeEach(() => {
   vi.stubEnv("ALLOW_ALL_GOOGLE_ACCOUNTS", "true");
@@ -46,4 +47,21 @@ it("does not create accounts for unverified email or a different provider", asyn
   expect(await login("student@gmail.com", false)).toBe(false);
   expect(await login("student@gmail.com", true, "other-provider")).toBe(false);
   expect(await db.select().from(users)).toEqual([]);
+});
+
+it("derives LeetCode verification from the current database record, never a supplied session flag", async () => {
+  const db = await createTestDb(); getDb.mockReturnValue(db);
+  await login("student@gmail.com", true);
+  const callback = state.config!.callbacks!.session!;
+  // Auth.js types this callback as an adapter/JWT intersection. Exercise the
+  // actual JWT runtime shape, including an intentionally untrusted input flag.
+  const readSession = async () => callback({
+    session: { user: { email: "student@gmail.com", leetcodeVerified: true }, expires: "2030-01-01T00:00:00Z" },
+    token: { email: "student@gmail.com", leetcodeVerified: true },
+  } as unknown as Parameters<typeof callback>[0]);
+  expect((await readSession()).user).toMatchObject({ leetcodeVerified: false, role: "student" });
+  await db.update(users).set({ leetcodeUsername: "verified-student", leetcodeVerifiedAt: new Date() }).where(eq(users.email, "student@gmail.com"));
+  expect((await readSession()).user).toMatchObject({ leetcodeVerified: true });
+  await db.update(users).set({ leetcodeVerifiedAt: null }).where(eq(users.email, "student@gmail.com"));
+  expect((await readSession()).user).toMatchObject({ leetcodeVerified: false });
 });

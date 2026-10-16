@@ -7,7 +7,7 @@ Date: 2026-10-15
 - Handoff: [`HANDOFF.md`](HANDOFF.md)
 - Implementation plan: [`docs/superpowers/plans/2026-10-15-weekly-contest-portal.md`](docs/superpowers/plans/2026-10-15-weekly-contest-portal.md)
 - Source of truth: [`docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md`](docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md)
-- **Status:** live on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. Public verified-Google sign-in is enabled, with students by default and explicit email-based admin roles. Google Audience is External/**In production**. **80 automated tests and 10 browser checks pass locally**, with a successful production build. The visibility follow-up adds archived problem sets and contest-scoped standings state.
+- **Status:** deployed on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. Google signup is public, with students by default and explicit admin emails. The latest update requires a verified LeetCode profile for participant-facing contest access and standardizes displayed/input times to IST. **103 automated tests, 12 browser checks, type checking, lint, and the production build pass locally**.
 
 ## Visibility and standings follow-up
 
@@ -24,6 +24,14 @@ The owner subsequently approved sign-in for **all verified Google accounts**, su
 Tests cover arbitrary Google/Workspace email domains, invalid/unverified emails, multiple configured admins, lookalikes, real database user creation, rejection of a profile-supplied admin role, and role synchronization on subsequent sign-ins. **69 unit/integration tests pass**. Public `/privacy` and `/terms` pages and a support contact complete Google Branding. The OAuth app was published and reloaded to confirm External/In production; a live sign-in request uses only `openid profile email` and the correct callback. Anonymous admin requests remain blocked. See the connected-environment notes for details.
 
 The original handoff and plan have been preserved as approved historical documents. Their “no application code” state and unchecked tasks no longer describe the current repository. Begin future work by inspecting this report and the actual code, rather than re-running the scaffold steps.
+
+## Verified contest entry and IST-only follow-up
+
+The owner requested mandatory LeetCode verification before entering contests, and Indian time only. Signed-in users without a verified LeetCode profile now see a verification gate on the contest home and direct result URLs. Standings, submission, and report APIs reject unverified participants with HTTP 403. A username alone is insufficient: the database must contain a valid verification timestamp. Auth.js derives the session flag from fresh database state; a supplied/stale JWT flag cannot bypass it. Account/linking endpoints remain usable for unverified users, and administrative management remains role-controlled.
+
+All displayed times, tooltips, date/time inputs, manual grants, and audit timestamp views use IST. Server rendering no longer displays a UTC fallback. Form parsing explicitly applies India time rather than the browser's timezone, preserving stored instants and scoring rules. Verification instructions now correctly name LeetCode's **ReadMe** field.
+
+Regression coverage includes page/API bypass attempts, verification completion from an unverified account, stale verification claims, IST conversion across multiple device timezones, invalid calendar dates, and scheduling/manual grants outside India. **103 unit/integration tests pass** after this update.
 
 ## Vercel Hobby / no-cron update (owner-approved 2026-10-16)
 
@@ -119,14 +127,14 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 
 | Command/check | Result |
 |---|---|
-| `npm test` | **PASS: 80 tests in 19 files.** Includes finished-results problem visibility, future/live gating, localized timestamps, live-board isolation, a three-student demo, and all previous auth/contest/scoring/moderation coverage. |
+| `npm test` | **PASS: 103 tests in 23 files.** Adds verified-profile page/API gates, fresh database-derived session flags, verification-route completion, and IST parsing/display across browser timezones to the existing auth/contest/scoring/moderation coverage. |
 | `npm run typecheck` | **PASS** |
 | `npm run lint` | **PASS** |
 | `npm run build` | **PASS**, production Next.js build with all application/API routes |
 | `npm run db:generate` | **PASS**, no schema drift after initial migration generation |
 | `npm audit --omit=dev` | **PASS**, zero production dependency vulnerabilities reported |
 | `npm run leetcode:smoke -- lee215` | **PASS**, real endpoint returned 20 accepted records with numeric IDs/slugs/dates and an available profile |
-| `PLAYWRIGHT_CHANNEL=chrome npm run test:browser` | **PASS: 10 browser checks**, including public privacy/rules pages, desktop/mobile navigation, delayed feedback, keyboard access, reduced motion, skeletons, and overflow checks. |
+| `PLAYWRIGHT_CHANNEL=chrome npm run test:browser` | **PASS: 12 browser checks**, including verification-gate presentation/account navigation, public privacy/rules pages, desktop/mobile navigation, delayed feedback, keyboard access, reduced motion, skeletons, and overflow checks. |
 | Default Playwright browser download | Initially **BLOCKED** by CDN timeout/DNS failure; browser execution succeeded using installed Chrome instead |
 | `git diff --check` | **PASS** |
 | Full `npm audit` | **9 development-only transitive advisories** in ESLint globbing and Drizzle CLI dependencies; compatible upstream remediation still pending. Breaking forced downgrades were not applied. |

@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ContentSkeleton } from "../../src/app/components/skeleton";
+import { VerificationGate } from "../../src/app/components/verification-gate";
 test("public pages render, navigate and fit the viewport without credentials", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", e => errors.push(e.message));
@@ -78,4 +79,16 @@ test("privacy and participation information is available without signing in", as
   await expect(page.getByRole("heading", { name: "Privacy policy", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Rules", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Participation rules", exact: true })).toBeVisible();
+});
+
+test("verification gate is readable and provides a working Account link", async ({ page }) => {
+  await page.goto("/");
+  const html = renderToStaticMarkup(createElement(VerificationGate, { action: createElement("a", { href: "/account", className: "button" }, "Verify LeetCode profile") }));
+  await page.locator("#content").evaluate((element, markup) => { element.innerHTML = markup; }, html);
+  await expect(page.getByRole("heading", { name: "Verify LeetCode to enter contests" })).toBeVisible();
+  await expect(page.locator('a[href^="https://leetcode.com/problems/"]')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: test.info().outputPath("verification-gate.png"), animations: "disabled" });
+  await page.getByRole("link", { name: "Verify LeetCode profile", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Account setup" })).toBeVisible();
 });

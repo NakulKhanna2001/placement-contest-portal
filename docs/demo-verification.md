@@ -10,7 +10,7 @@ The results page previously displayed only solve records. With zero solves, none
 
 - Completed-contest results now include the full problem set, original windows, difficulties, and links for practice, even if nobody solved a problem.
 - Upcoming/live results pages offer an **Open contest** link. Future questions remain gated; opening a results URL does not bypass release times.
-- Contest schedules, windows, deadlines, and acceptance times display in the viewer's local timezone. SSR uses an explicit UTC fallback, and the UTC instant remains in each time element's tooltip and `datetime` attribute.
+- Contest schedules, windows, deadlines, and acceptance times are displayed clearly. A subsequent owner-requested update standardized all displays and inputs to **IST**, including SSR and tooltips. The underlying instant remains in the machine-readable `datetime` attribute.
 - Live leaderboard rows and request-error state are scoped to the current contest, so switching contests cannot briefly show the previous standings or an old failure notice.
 
 ## Live demo

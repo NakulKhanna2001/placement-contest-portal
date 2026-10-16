@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { ApiForm } from "../components/api-form";
-import { localDateTimeInput, type ContestEditorData } from "@/lib/contest-form";
+import type { ContestEditorData } from "@/lib/contest-form";
+import { indiaDateTimeInput, indiaInputToIso } from "@/lib/india-time";
 
 const difficulties = ["easy", "easy", "medium", "hard"] as const;
 const emptyBatch = () => difficulties.map(difficulty => ({ difficulty, title: "", slug: "" }));
@@ -13,9 +14,7 @@ export function ScheduleForm({ initial, onSaved, onCancel }: {
   const initialCount = initial?.batches.length ?? 3;
   const [count, setCount] = useState(initialCount);
   const [draftBatches, setDraftBatches] = useState(() => initial?.batches.map(list => list.map(p => ({ ...p }))) ?? []);
-  // Edit forms mount only after the client-side Edit click, avoiding an SSR
-  // timezone mismatch when the server is in UTC and the admin is elsewhere.
-  const initialStart = initial ? localDateTimeInput(initial.startsAt) : "";
+  const initialStart = initial ? indiaDateTimeInput(initial.startsAt) : "";
 
   function editProblem(batch: number, problem: number, field: "title" | "slug", value: string) {
     setDraftBatches(previous => {
@@ -30,9 +29,8 @@ export function ScheduleForm({ initial, onSaved, onCancel }: {
     const enteredStart = String(data.get("startsAt"));
     const contest = {
       title: data.get("title"),
-      // Preserve the original instant if unchanged, including fractional seconds
-      // and ambiguous local times during a daylight-saving clock transition.
-      startsAt: initial && enteredStart === initialStart ? initial.startsAt : new Date(enteredStart).toISOString(),
+      // Preserve fractional seconds when unchanged; new wall times are always IST.
+      startsAt: initial && enteredStart === initialStart ? initial.startsAt : indiaInputToIso(enteredStart),
       status: data.get("status"),
       graceSeconds: Math.round(Number(data.get("grace")) * 60),
       bonusWindowSeconds: Math.round(Number(data.get("bonusWindow")) * 60),
@@ -43,7 +41,7 @@ export function ScheduleForm({ initial, onSaved, onCancel }: {
   }}>
     <div className="two-fields">
       <label>Contest title<input name="title" required maxLength={200} defaultValue={initial?.title ?? ""} placeholder="NST LC Grind #1" /></label>
-      <label>Starts at (your local time)<input name="startsAt" type="datetime-local" step={1} required defaultValue={initialStart} /></label>
+      <label>Starts at (IST)<input name="startsAt" type="datetime-local" step={1} required defaultValue={initialStart} /></label>
     </div>
     <div className="two-fields">
       <label>Status<select name="status" defaultValue={initial?.status ?? "scheduled"}><option value="scheduled">Scheduled — visible to students</option><option value="draft">Draft — admins only</option></select></label>
@@ -71,7 +69,7 @@ export function EditContest({ initial }: { initial: ContestEditorData }) {
   return <div className="contest-editor">
     {editing ? <>
       <h3>Edit contest</h3>
-      <p className="muted">Times are shown in your local timezone. Choose a future start time before saving.</p>
+      <p className="muted">All times are in India Standard Time (IST). Choose a future start time before saving.</p>
       <ScheduleForm key={initial.revision} initial={initial} onCancel={() => setEditing(false)} onSaved={() => { setEditing(false); setSaved(true); }} />
     </> : <button type="button" className="button-secondary" onClick={() => { setSaved(false); setEditing(true); }}>Edit contest</button>}
     {saved && <p className="notice" role="status">Contest updated.</p>}

@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 import { EditContest, ScheduleForm } from "@/app/admin/contest-editor";
+import { GrantForm } from "@/app/admin/admin-forms";
 import type { ContestEditorData } from "@/lib/contest-form";
 
 const batch = (n: number) => [
@@ -27,7 +28,7 @@ it("opens with saved values and sends an update with the same ID/revision and co
   render(<EditContest initial={initial} />);
   await user.click(screen.getByRole("button", { name: "Edit contest" }));
   expect((screen.getByLabelText("Contest title") as HTMLInputElement).value).toBe("Saved contest");
-  const date = screen.getByLabelText("Starts at (your local time)") as HTMLInputElement;
+  const date = screen.getByLabelText("Starts at (IST)") as HTMLInputElement;
   expect(date.value).toBe("2030-10-19T15:30");
   expect(new Date(date.value).toISOString()).toBe(initial.startsAt);
   expect((screen.getByLabelText("Status") as HTMLSelectElement).value).toBe("draft");
@@ -50,7 +51,7 @@ it("still creates a new contest using the original create request shape", async 
   const user = userEvent.setup();
   const { container } = render(<ScheduleForm />);
   await user.type(screen.getByLabelText("Contest title"), "New contest");
-  fireEvent.change(screen.getByLabelText("Starts at (your local time)"), { target: { value: "2030-10-19T15:30" } });
+  fireEvent.change(screen.getByLabelText("Starts at (IST)"), { target: { value: "2030-10-19T15:30" } });
   fireEvent.change(screen.getByLabelText("Hourly batches"), { target: { value: "1" } });
   for (let i = 0; i < 4; i++) {
     await user.type(container.querySelector(`[name="title-0-${i}"]`)!, `Problem ${i}`);
@@ -75,6 +76,35 @@ it("retains edited problem fields when temporarily reducing and restoring the ba
   expect(container.querySelector('[name="title-1-0"]')).toBeNull();
   fireEvent.change(screen.getByLabelText("Hourly batches"), { target: { value: "2" } });
   expect((container.querySelector('[name="title-1-0"]') as HTMLInputElement).value).toBe("Keep this change");
+});
+
+it("interprets an edited start as IST even when the browser is outside India", async () => {
+  vi.stubEnv("TZ", "America/New_York");
+  const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ message: "Contest updated." }) });
+  vi.stubGlobal("fetch", fetcher);
+  const user = userEvent.setup();
+  render(<EditContest initial={initial} />);
+  await user.click(screen.getByRole("button", { name: "Edit contest" }));
+  expect((screen.getByLabelText("Starts at (IST)") as HTMLInputElement).value).toBe("2030-10-19T15:30");
+  fireEvent.change(screen.getByLabelText("Starts at (IST)"), { target: { value: "2030-10-20T16:45" } });
+  await user.click(screen.getByRole("button", { name: "Save changes" }));
+  await waitFor(() => expect(fetcher).toHaveBeenCalledOnce());
+  expect(JSON.parse(fetcher.mock.calls[0][1].body).contest.startsAt).toBe("2030-10-20T11:15:00.000Z");
+});
+
+it("interprets manual grant acceptance times as IST outside India", async () => {
+  vi.stubEnv("TZ", "UTC");
+  const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ message: "Granted." }) });
+  vi.stubGlobal("fetch", fetcher);
+  const user = userEvent.setup();
+  render(<GrantForm students={[{ id: 1, label: "Student" }]} problems={[{ id: 2, label: "Two Sum" }]} />);
+  await user.selectOptions(screen.getByLabelText("Students (select multiple for an outage)"), "1");
+  fireEvent.change(screen.getByLabelText("Accepted at (IST)"), { target: { value: "2030-10-19T15:35" } });
+  await user.type(screen.getByLabelText("Reason"), "Confirmed proof");
+  await user.type(screen.getByLabelText("Evidence URL"), "https://example.com/proof");
+  await user.click(screen.getByRole("button", { name: "Grant solve(s)" }));
+  await waitFor(() => expect(fetcher).toHaveBeenCalledOnce());
+  expect(JSON.parse(fetcher.mock.calls[0][1].body).acceptedAt).toBe("2030-10-19T10:05:00.000Z");
 });
 
 it.each([

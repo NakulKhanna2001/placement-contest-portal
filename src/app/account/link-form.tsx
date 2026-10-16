@@ -13,7 +13,7 @@ export function LinkForm({ initialToken }: { initialToken: string | null }) {
     catch (e) { setMessage(e instanceof Error ? e.message : "Could not get a code."); }
     finally { setBusy(false); }
   }
-  return <div><h2>Link your LeetCode account</h2><ol className="rule-list"><li>Get your verification code below.</li><li>Add it to your <a href="https://leetcode.com/profile/" target="_blank" rel="noreferrer">LeetCode bio</a> and save.</li><li>Enter your username and verify.</li></ol>{!token ? <button disabled={busy} onClick={begin}>{busy ? "Getting code…" : "Get verification code"}</button> : <><p className="notice"><code>{token}</code></p><form className="form-stack" onSubmit={async e => {
+  return <div><h2>Link your LeetCode account</h2><ol className="rule-list"><li>Get your verification code below.</li><li>Open <a href="https://leetcode.com/settings/profile/" target="_blank" rel="noreferrer">LeetCode profile settings</a>, add the code to <strong>ReadMe</strong>, and save.</li><li>Enter your username and verify.</li></ol>{!token ? <button disabled={busy} onClick={begin}>{busy ? "Getting code…" : "Get verification code"}</button> : <><p className="notice"><code>{token}</code></p><form className="form-stack" onSubmit={async e => {
     e.preventDefault(); setBusy(true); setMessage("");
     const username = new FormData(e.currentTarget).get("username");
     try { await postJson("/api/link", { action: "confirm", username }); router.refresh(); }

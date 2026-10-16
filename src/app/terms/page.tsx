@@ -8,9 +8,10 @@ export default function ParticipationRules() {
     <PageHeader title="Participation rules" description="The rules for joining and taking part in NST LC Grind contests." />
     <article className="card policy-content">
       <h2>Joining a contest</h2>
-      <p>Anyone with a verified Google account can sign in as a student. Only explicitly appointed accounts receive administrator access. Link your own LeetCode account before the contest starts; that username is locked after verification.</p>
+      <p>Anyone with a verified Google account can sign in as a student. Verify your own LeetCode profile on the Account page before opening contest problems or standings. Complete verification before a contest starts to submit solves in that contest; your LeetCode username is locked after verification. Only explicitly appointed accounts receive administrator access.</p>
 
       <h2>Solving and scoring</h2>
+      <p>All displayed contest times and scheduling inputs use India Standard Time (IST).</p>
       <p>Solve the published problems on LeetCode and submit your accepted submission links here. A solve must be accepted inside its batch’s one-hour window. LeetCode’s acceptance time determines the score and early bonus; the portal’s displayed contest settings define the bonus and link deadline.</p>
       <p>Each problem counts once per participant, using the earliest known valid acceptance. Rankings use points, then Hard problems solved, then the earliest last counted solve.</p>
 
