@@ -1,9 +1,11 @@
-# Placement Contest Portal
+# NST LC Grind
 
 A portal for running a **weekly Saturday coding contest** for college placement prep. Students solve real LeetCode problems, paste their submission links, and are ranked on a live leaderboard. Cheating is policed by the community through reports with proof, reviewed by admins.
 
-> **Status: design and plan complete, no application code yet.**
-> The spec and a 16-task implementation plan are written and reviewed. Implementation starts at Task 1 of the plan. See [Where to start](#where-to-start).
+The interface uses a persistent workspace, responsive navigation, and page-specific skeletons. See [UI and navigation notes](docs/ui-performance.md) for the design, performance changes, and measured results.
+
+> **Status: v1 implemented and locally verified.**
+> Includes the student portal, account verification, contest scheduling, live leaderboard, admin grants/rescoring, reports, and results. **Managed Neon Postgres and real Google OAuth are configured and verified locally**, with owner-only access as requested. See the [connected environment](docs/environment-setup.md), [Setup](#setup), and the [implementation report](HANDOFF.implementation-report.md).
 
 ## How a contest works
 
@@ -30,49 +32,111 @@ Maximum score is 63 base, or 94.5 if every solve earns the bonus.
 |---|---|
 | [`docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md`](docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md) | The design spec: decisions, scoring rules, architecture, data model, flows, risks |
 | [`docs/superpowers/plans/2026-10-15-weekly-contest-portal.md`](docs/superpowers/plans/2026-10-15-weekly-contest-portal.md) | The implementation plan: 16 tasks, test-first, with code and commit steps |
-| [`HANDOFF.md`](HANDOFF.md) | Handoff notes for the next person or AI agent: state, decisions, pitfalls, next step |
+| [`HANDOFF.md`](HANDOFF.md) | Original approved handoff: settled decisions and pitfalls; its pre-implementation status is historical |
+| [`HANDOFF.implementation-report.md`](HANDOFF.implementation-report.md) | Current implementation status, verification evidence, deviations, and remaining launch work |
+| [`docs/runbook.md`](docs/runbook.md) | Environment setup, deployment, contest operations, moderation, load check, and dry run |
+| [`docs/environment-setup.md`](docs/environment-setup.md) | Connected Neon/Google resources, verified login, owner-only access, and deployment follow-up |
 
-## Tech stack (planned)
+## Tech stack
 
-- **Next.js** (App Router, TypeScript), deployed on **Vercel**
+- **Next.js 16 / React 19** (App Router, TypeScript), ready for **Vercel**
 - **Postgres** with **Drizzle ORM** (in-memory **PGlite** for tests)
-- **Auth.js** with Google login restricted to the college email domain
-- **Vitest** for tests
+- **Auth.js** with verified Google login, an exact college-domain restriction, and optional explicit-email access; currently configured for the owner only
+- **Vitest** for rules, integration, and route tests; **Playwright** for desktop/mobile browser smoke tests
+- **Zod** for request and upstream response validation
 
 ## Architecture in one paragraph
 
 Business rules are small pure modules (`link`, `scoring`, `ranking`) plus database-backed services (`contest`, `snapshotter`, `submission-checker`, `grants`, `reports`, `leaderboard`). `leetcode-client` is the only module that knows LeetCode's API shape, so a change on their side touches one file. A background **snapshot** job saves each linked student's recent accepted submission IDs every ~5 minutes, because LeetCode only returns the last 20; a submitted link is checked against that archive first, then a live fetch.
 
-## Where to start
+## Setup
 
-1. Read the spec (10 minutes), then skim the plan.
-2. Read [`HANDOFF.md`](HANDOFF.md) for decisions you should not change without asking and known pitfalls.
-3. Start at **Task 1** of the plan and work in order. Each task is test-first and ends with a commit.
+Use **Node 24** (`nvm use` if you use nvm).
 
 ```bash
-# once the app is scaffolded (Task 1)
-npm install
-npm test            # runs Vitest
-cp .env.example .env.local   # then fill in the values
+npm ci
 npm run dev
 ```
 
-Environment variables (names only; never commit values):
+Open **http://localhost:3000**. This workspace now has a private `.env.local` connected to Neon and Google OAuth. For a fresh checkout or another environment, supply these settings; without credentials the public landing page displays setup guidance:
 
+| Variable | Value to supply |
+|---|---|
+| `DATABASE_URL` | Your Postgres connection URL |
+| `AUTH_SECRET` | A securely generated random secret |
+| `AUTH_URL` | Canonical app URL; `http://localhost:3000` locally, the HTTPS app URL when self-hosted publicly |
+| `AUTH_GOOGLE_ID` | Google OAuth web-client ID |
+| `AUTH_GOOGLE_SECRET` | Google OAuth web-client secret |
+| `ALLOWED_EMAIL_DOMAIN` | Your exact college domain, e.g. `college.edu`; empty for owner-only access |
+| `ALLOWED_EMAILS` | Optional comma-separated exact email allowlist; currently just the owner |
+| `ADMIN_EMAILS` | Comma-separated administrator emails that also satisfy the access policy |
+| `CRON_SECRET` | A separate random secret for the snapshot scheduler |
+
+Generate secrets with `openssl rand -base64 32`. No `.env*` files belong in Git.
+
+Configure Google's callback URL as `http://localhost:3000/api/auth/callback/google` locally, and `https://YOUR_HOST/api/auth/callback/google` for deployment. Then apply the migration and restart the app:
+
+```bash
+npm run db:migrate
+npm run dev
 ```
-DATABASE_URL, AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET,
-ALLOWED_EMAIL_DOMAIN, ADMIN_EMAILS, CRON_SECRET
+
+1. Sign in with an allowed Google account. This workspace currently admits only the owner.
+2. Visit `/account`, put the verification code in your LeetCode bio, and confirm ownership **before the contest starts**.
+3. As an administrator, visit `/admin` to schedule or draft a contest, manage grants, review reports, and inspect the audit trail.
+4. Students use `/` during a contest and `/results` afterward.
+
+The scheduler is configured in `vercel.json` for every five minutes. Use a hosting plan supporting that frequency; see the [runbook](docs/runbook.md) for deployment details.
+
+### Fast local preview
+
+For normal use, run the optimized build instead of the development compiler:
+
+```bash
+npm run build
+npm run start -- --hostname localhost
 ```
+
+The current workspace is already serving this optimized build at **http://localhost:3000**. Use `npm run dev` when editing source; stop the existing server before switching modes. Production mode also enables Next.js route prefetching.
+
+## Verification
+
+```bash
+npm test                    # rules, access policy, and a 50-student contest simulation
+npm run typecheck
+npm run lint
+npm run build
+npm audit --omit=dev
+npx playwright install chromium
+npm run test:browser         # build first; public desktop/mobile tests on port 3100
+npm run leetcode:smoke -- lee215
+```
+
+If Chrome is already installed, use `PLAYWRIGHT_CHANNEL=chrome npm run test:browser` instead of downloading Chromium. Tests use an in-memory database and fake LeetCode clients; the smoke script alone calls the live LeetCode endpoint.
+
+GitHub Actions runs the automated checks in `.github/workflows/ci.yml`. For an authenticated preview load check, configure the variables described in the runbook and run `npm run load:preview`.
+
+## Implementation layout
+
+- `src/lib/`: pure scoring, parsing, ranking, defaults, and validation
+- `src/db/`, `drizzle/`: Postgres schema, migrations, production/test database adapters
+- `src/leetcode/`: timeout-bounded LeetCode adapter
+- `src/services/`: account linking, contests, snapshots, verification, leaderboard, grants, reports, and audit
+- `src/app/`: responsive student/admin pages and authenticated API routes
+- `tests/`: rule, database, service, route, simulation, and browser tests
+
+For further development, read the [implementation report](HANDOFF.implementation-report.md) first, then the original handoff's settled decisions and the design spec. The original plan's unchecked boxes are historical; do not re-scaffold the project.
 
 ## Known risks
 
-- **LeetCode's GraphQL endpoint is unofficial.** It may change or throttle. It is isolated in one module, and admin grants are the fallback. A live smoke script is in the plan (Task 6).
-- **The recent-accepted list is capped at 20.** The snapshot archive exists for this reason. Students must link their account before the contest starts.
-- **The load test at unlock spikes is manual** and needs a deployed preview.
+- **LeetCode's GraphQL endpoint is unofficial.** It may change or throttle. It is isolated in one module, and admin grants are the fallback. Run `npm run leetcode:smoke -- USERNAME` before each contest.
+- **The recent-accepted list is capped at 20.** The snapshot archive exists for this reason. Students must link their account before the contest starts. Snapshots also run during grace to capture final-minute submissions.
+- **The load test at unlock spikes and the volunteer dry run need a deployed preview.** Confirm scheduler throughput at the expected student count before launch.
+- **Local Google login and the managed Postgres connection are verified.** Public deployment, its callback hostname, and hosted cron still need setup. Student access remains closed until the owner supplies a college domain and opens the Google audience appropriately.
 
 ## Contributing
 
-- Follow the plan's task order and keep tasks small and test-first.
+- Keep changes small and test-first; use the implementation report as the current-state reference.
 - Do not change a decision listed in `HANDOFF.md` without discussing it first. The spec explains the reasoning behind each.
 - Never commit secrets. `.env*` files are git-ignored.
 - Open an issue or pull request for anything that changes scoring rules, since those affect fairness.
