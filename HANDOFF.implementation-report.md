@@ -7,7 +7,11 @@ Date: 2026-10-15
 - Handoff: [`HANDOFF.md`](HANDOFF.md)
 - Implementation plan: [`docs/superpowers/plans/2026-10-15-weekly-contest-portal.md`](docs/superpowers/plans/2026-10-15-weekly-contest-portal.md)
 - Source of truth: [`docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md`](docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md)
-- **Status:** deployed on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. Google signup is public, with students by default and explicit admin emails. Verified LeetCode profiles are required for participant-facing contest access; displayed/input times use IST. The latest update adds a screenshot verification guide and unverified-member welcome popup. **113 automated tests, 14 browser checks, type checking, lint, and the production build pass locally**.
+- **Status:** deployed on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. Google signup is public, with students by default and explicit admin emails. Verified LeetCode profiles are required for participant-facing contest access; displayed/input times use IST. Recent updates add screenshot verification onboarding and automatic problem URL-to-slug extraction in the contest editor. **119 automated tests, 14 browser checks, type checking, lint, and the production build pass locally**.
+
+## Full LeetCode problem URL input
+
+Contest creation and editing accept full LeetCode problem URLs as well as plain slugs. Pasting a complete URL extracts its slug immediately; typed URLs normalize on blur or during submission, including Enter without blur. The parser handles standard problem pages, tab-specific paths, query strings/fragments, and contest problem URLs. Invalid links get field-level validation, and request payloads retain the existing slug-only format. No upstream lookup or schema change is required. Regression cases cover both create/edit payloads, keyboard submission, invalid-link correction, and accepted/rejected URL variants.
 
 ## Screenshot verification onboarding
 
@@ -135,7 +139,7 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 
 | Command/check | Result |
 |---|---|
-| `npm test` | **PASS: 113 tests in 24 files.** Adds screenshot onboarding visibility/dismissal, guide reopening, copy/verification feedback to the existing verified-profile gates, fresh session flags, verification-route completion, IST, auth/contest/scoring/moderation coverage. |
+| `npm test` | **PASS: 119 tests in 25 files.** Adds full problem URL parsing and create/edit input coverage to screenshot onboarding, verified-profile gates, fresh session flags, verification-route completion, IST, auth/contest/scoring/moderation coverage. |
 | `npm run typecheck` | **PASS** |
 | `npm run lint` | **PASS** |
 | `npm run build` | **PASS**, production Next.js build with all application/API routes |

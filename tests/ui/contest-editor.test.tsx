@@ -145,3 +145,61 @@ it("keeps the editor and input values when the server rejects an edit", async ()
   expect((screen.getByLabelText("Contest title") as HTMLInputElement).value).toBe("Saved contest");
   expect(refresh).not.toHaveBeenCalled();
 });
+
+it.each([false, true])("extracts pasted problem URLs and saves only slugs (editing: %s)", async editing => {
+  const user = userEvent.setup();
+  const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ message: "Saved." }) });
+  vi.stubGlobal("fetch", fetcher);
+  const { container } = render(<ScheduleForm initial={editing ? initial : undefined} />);
+  if (!editing) {
+    await user.type(screen.getByLabelText("Contest title"), "URL contest");
+    fireEvent.change(screen.getByLabelText("Starts at (IST)"), { target: { value: "2030-10-19T15:30" } });
+    fireEvent.change(screen.getByLabelText("Hourly batches"), { target: { value: "1" } });
+    for (let i = 0; i < 4; i++) {
+      await user.type(container.querySelector(`[name="title-0-${i}"]`)!, `Problem ${i}`);
+      await user.type(container.querySelector(`[name="slug-0-${i}"]`)!, `problem-${i}`);
+    }
+  }
+  const input = screen.getAllByLabelText("LeetCode problem URL or slug")[0] as HTMLInputElement;
+  await user.clear(input);
+  await user.paste("https://leetcode.com/problems/two-sum/description/?envType=problem-list");
+  expect(input.value).toBe("two-sum");
+  await user.click(screen.getByRole("button", { name: editing ? "Save changes" : "Save contest" }));
+  await waitFor(() => expect(fetcher).toHaveBeenCalledOnce());
+  const body = JSON.parse(fetcher.mock.calls[0][1].body);
+  expect((editing ? body.contest : body).batches[0][0].slug).toBe("two-sum");
+});
+
+it("allows typing a full URL and submitting with Enter without a blur", async () => {
+  const user = userEvent.setup();
+  const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ message: "Saved." }) });
+  vi.stubGlobal("fetch", fetcher);
+  render(<ScheduleForm initial={initial} />);
+  const input = screen.getAllByLabelText("LeetCode problem URL or slug")[0] as HTMLInputElement;
+  await user.clear(input);
+  await user.type(input, "https://leetcode.com/problems/two-sum/description/");
+  expect(input.value).toBe("https://leetcode.com/problems/two-sum/description/");
+  await user.keyboard("{Enter}");
+  await waitFor(() => expect(fetcher).toHaveBeenCalledOnce());
+  expect(JSON.parse(fetcher.mock.calls[0][1].body).contest.batches[0][0].slug).toBe("two-sum");
+});
+
+it("blocks unrelated URLs and clears validation when corrected", async () => {
+  const user = userEvent.setup();
+  const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ message: "Saved." }) });
+  vi.stubGlobal("fetch", fetcher);
+  render(<ScheduleForm initial={initial} />);
+  const input = screen.getAllByLabelText("LeetCode problem URL or slug")[0] as HTMLInputElement;
+  await user.clear(input);
+  await user.paste("https://example.com/problems/two-sum/");
+  await user.click(screen.getByRole("button", { name: "Save changes" }));
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(input.validationMessage).toContain("LeetCode problem URL");
+  await user.clear(input);
+  await user.type(input, "https://leetcode.com/problems/two-sum/");
+  await user.tab();
+  expect(input.value).toBe("two-sum");
+  expect(input.checkValidity()).toBe(true);
+  await user.click(screen.getByRole("button", { name: "Save changes" }));
+  await waitFor(() => expect(fetcher).toHaveBeenCalledOnce());
+});

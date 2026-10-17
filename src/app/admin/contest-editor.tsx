@@ -2,11 +2,24 @@
 
 import { useState } from "react";
 import { ApiForm } from "../components/api-form";
-import type { ContestEditorData } from "@/lib/contest-form";
+import { parseLeetCodeProblemSlug, type ContestEditorData } from "@/lib/contest-form";
 import { indiaDateTimeInput, indiaInputToIso } from "@/lib/india-time";
 
 const difficulties = ["easy", "easy", "medium", "hard"] as const;
 const emptyBatch = () => difficulties.map(difficulty => ({ difficulty, title: "", slug: "" }));
+
+function ProblemSlugInput({ name, value, onChange }: { name: string; value: string; onChange: (value: string) => void }) {
+  return <input name={name} required maxLength={2000} value={value} placeholder="https://leetcode.com/problems/two-sum/" autoCapitalize="none" spellCheck={false}
+    ref={input => { input?.setCustomValidity(value && !parseLeetCodeProblemSlug(value) ? "Enter a LeetCode problem URL or a slug such as two-sum (up to 200 characters)." : ""); }}
+    onChange={event => onChange(event.target.value)}
+    onBlur={() => { const slug = parseLeetCodeProblemSlug(value); if (slug) onChange(slug); }}
+    onPaste={event => {
+      const input = event.currentTarget;
+      const pasted = value.slice(0, input.selectionStart ?? 0) + event.clipboardData.getData("text") + value.slice(input.selectionEnd ?? value.length);
+      const slug = parseLeetCodeProblemSlug(pasted);
+      if (slug) { event.preventDefault(); onChange(slug); }
+    }} />;
+}
 
 export function ScheduleForm({ initial, onSaved, onCancel }: {
   initial?: ContestEditorData; onSaved?: () => void; onCancel?: () => void;
@@ -35,7 +48,7 @@ export function ScheduleForm({ initial, onSaved, onCancel }: {
       graceSeconds: Math.round(Number(data.get("grace")) * 60),
       bonusWindowSeconds: Math.round(Number(data.get("bonusWindow")) * 60),
       bonusMultiplier: Number(data.get("bonusMultiplier")),
-      batches: Array.from({ length: count }, (_, b) => difficulties.map((difficulty, p) => ({ difficulty, slug: data.get(`slug-${b}-${p}`), title: data.get(`title-${b}-${p}`) }))),
+      batches: Array.from({ length: count }, (_, b) => difficulties.map((difficulty, p) => ({ difficulty, slug: parseLeetCodeProblemSlug(String(data.get(`slug-${b}-${p}`))) ?? data.get(`slug-${b}-${p}`), title: data.get(`title-${b}-${p}`) }))),
     };
     return initial ? { action: "update", contestId: initial.id, revision: initial.revision, contest } : contest;
   }}>
@@ -56,9 +69,9 @@ export function ScheduleForm({ initial, onSaved, onCancel }: {
       <legend>Batch {b + 1} · unlocks at +{b}:00</legend>
       {difficulties.map((difficulty, p) => <div className="two-fields problem-fields" key={p}>
         <label>{difficulty} · title<input name={`title-${b}-${p}`} required maxLength={200} value={draftBatches[b]?.[p]?.title ?? ""} onChange={e => editProblem(b, p, "title", e.target.value)} placeholder="Problem title" /></label>
-        <label>LeetCode slug<input name={`slug-${b}-${p}`} required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxLength={200} value={draftBatches[b]?.[p]?.slug ?? ""} onChange={e => editProblem(b, p, "slug", e.target.value)} placeholder="two-sum" /></label>
+        <label>LeetCode problem URL or slug<ProblemSlugInput name={`slug-${b}-${p}`} value={draftBatches[b]?.[p]?.slug ?? ""} onChange={value => editProblem(b, p, "slug", value)} /></label>
       </div>)}
-      <p className="card-footnote">Use the slug only, for example <code>two-sum</code>, not the full URL.</p>
+      <p className="card-footnote">Paste the full LeetCode problem URL — we’ll extract the slug automatically. You can also enter a slug such as <code>two-sum</code>.</p>
     </fieldset>)}
   </ApiForm>;
 }

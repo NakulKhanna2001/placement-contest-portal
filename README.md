@@ -95,6 +95,8 @@ Completed results include the full problem set for verified participants to prac
 
 **Editing:** In `/admin`, expand an existing contest, select **Edit contest**, make changes, and select **Save changes**. Drafts and future scheduled contests are editable; started contests are locked. The editor uses **IST** and records changes in the audit log.
 
+**Problem links:** When creating or editing contests, paste a full LeetCode problem URL into **LeetCode problem URL or slug**. For example, `https://leetcode.com/problems/two-sum/description/` becomes `two-sum` automatically. Links with query parameters and LeetCode contest problem links also work; plain slugs are still accepted.
+
 **Adding administrators:** Update `ADMIN_EMAILS` in Vercel with comma-separated email addresses, preserving the existing owner address, then redeploy. Those accounts receive admin access on their next Google sign-in. Everyone else remains a student. Never use a domain or wildcard in this list.
 
 `vercel.json` uses the Next.js preset and the `iad1` region near the Neon database. It defines **zero cron jobs** and works on Vercel Hobby. See the [runbook](docs/runbook.md) for deployment details.
