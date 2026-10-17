@@ -6,6 +6,7 @@ import { getSession } from "@/services/viewer";
 import { Navigation, NavItem } from "./components/navigation";
 import { AccountControlsSkeleton } from "./components/skeleton";
 import { Icon } from "./components/ui-icon";
+import { VerificationWelcome } from "./components/verification-welcome";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -28,6 +29,11 @@ async function AccountControls() {
   </>;
 }
 
+async function VerificationOnboarding() {
+  const session = await getSession();
+  return <VerificationWelcome member={session?.user.id ? { id: session.user.id, leetcodeVerified: session.user.leetcodeVerified } : null} />;
+}
+
 // The shell does not await auth or Postgres. Each dynamic region streams within
 // its own boundary, so navigation stays usable while the database wakes up.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -41,5 +47,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <div id="content" className="shell" tabIndex={-1}>{children}</div>
       <footer className="site-footer"><span>NST LC Grind</span><div className="footer-links"><Link href="/privacy">Privacy</Link><Link href="/terms">Rules</Link></div><a href="https://leetcode.com" target="_blank" rel="noreferrer">Problems on LeetCode <Icon name="external" size={12} /></a></footer>
     </div>
+    <Suspense fallback={null}><VerificationOnboarding /></Suspense>
   </body></html>;
 }

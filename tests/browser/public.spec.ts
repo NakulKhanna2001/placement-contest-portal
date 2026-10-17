@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ContentSkeleton } from "../../src/app/components/skeleton";
 import { VerificationGate } from "../../src/app/components/verification-gate";
+import { VerificationWelcome } from "../../src/app/components/verification-welcome";
 test("public pages render, navigate and fit the viewport without credentials", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", e => errors.push(e.message));
@@ -91,4 +92,51 @@ test("verification gate is readable and provides a working Account link", async 
   await page.screenshot({ path: test.info().outputPath("verification-gate.png"), animations: "disabled" });
   await page.getByRole("link", { name: "Verify LeetCode profile", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Account setup" })).toBeVisible();
+});
+
+test("welcome guide screenshots fit the modal and native keyboard focus stays inside it", async ({ page }) => {
+  await page.goto("/");
+  // Render the production component with an isolated member; no production
+  // account changes or test-only auth bypass. React interactions are covered
+  // by the UI suite; this checks real browser dialog semantics and CSS.
+  const html = renderToStaticMarkup(createElement(VerificationWelcome, { member: { id: 8, leetcodeVerified: false } }));
+  await page.locator("#content").evaluate((element, markup) => { element.innerHTML = markup; }, html);
+  const dialog = page.locator("dialog");
+  const account = page.getByRole("link", { name: "Account", exact: true });
+  await account.focus();
+  await dialog.evaluate((element: HTMLDialogElement) => element.showModal());
+  await expect(page.getByRole("dialog", { name: "Welcome to NST LC Grind" })).toBeVisible();
+  await expect(dialog.getByText("Required before entering contests")).toBeVisible();
+  expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  const bounds = await dialog.boundingBox();
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+  for (const image of await dialog.getByRole("img").all()) {
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
+    await image.evaluate((element: HTMLImageElement) => element.decode());
+    const imageBounds = await image.boundingBox();
+    expect(imageBounds!.x).toBeGreaterThanOrEqual(bounds!.x);
+    expect(imageBounds!.x + imageBounds!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width);
+  }
+  await page.screenshot({ path: test.info().outputPath("verification-save-step.png"), animations: "disabled" });
+  await dialog.locator(".welcome-dialog-body").evaluate(element => { element.scrollTop = 0; });
+  await page.screenshot({ path: test.info().outputPath("verification-welcome.png"), animations: "disabled" });
+  const start = dialog.getByRole("link", { name: "Start verification" });
+  await start.focus();
+  await account.focus();
+  await expect(start).toBeFocused();
+  // Native dialogs may let Tab visit browser chrome (activeElement = body),
+  // but must never allow focus onto the inert page behind the modal.
+  for (const key of ["Tab", "Tab", "Tab", "Shift+Tab", "Shift+Tab", "Shift+Tab"]) {
+    await page.keyboard.press(key);
+    expect(await dialog.evaluate(element => document.activeElement === document.body || element.contains(document.activeElement))).toBe(true);
+  }
+  await start.focus();
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(account).toBeFocused();
+  await dialog.evaluate((element: HTMLDialogElement) => element.showModal());
+  await start.click();
+  await expect(page).toHaveURL(/\/account#leetcode-verification$/);
 });

@@ -7,7 +7,15 @@ Date: 2026-10-15
 - Handoff: [`HANDOFF.md`](HANDOFF.md)
 - Implementation plan: [`docs/superpowers/plans/2026-10-15-weekly-contest-portal.md`](docs/superpowers/plans/2026-10-15-weekly-contest-portal.md)
 - Source of truth: [`docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md`](docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md)
-- **Status:** deployed on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. Google signup is public, with students by default and explicit admin emails. The latest update requires a verified LeetCode profile for participant-facing contest access and standardizes displayed/input times to IST. **103 automated tests, 12 browser checks, type checking, lint, and the production build pass locally**.
+- **Status:** deployed on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. Google signup is public, with students by default and explicit admin emails. Verified LeetCode profiles are required for participant-facing contest access; displayed/input times use IST. The latest update adds a screenshot verification guide and unverified-member welcome popup. **113 automated tests, 14 browser checks, type checking, lint, and the production build pass locally**.
+
+## Screenshot verification onboarding
+
+Unverified signed-in members receive an accessible native welcome dialog explaining the mandatory ownership step. It uses the owner's three annotated screenshots, optimized to approximately 104 KB total in local WebP assets, with descriptive alternatives and full-size links. The five steps cover generating a personal code, opening Edit Profile, locating ReadMe, pasting/saving, and returning to verify the username. A persistent action opens `/account#leetcode-verification`; the Account form has a reopenable guide and a copy-code button with manual-copy fallback.
+
+Dismissal is stored per member in `sessionStorage` for that browser tab. Closing or pressing Escape leaves all existing server verification gates in place. Anonymous and verified members receive no popup; a fresh verified session removes it after the existing form refresh. The async shell reuses request-cached session resolution, so onboarding adds no separate authentication endpoint or blocking shell fetch.
+
+Ten UI cases cover visibility, dismissal/remount and different-user isolation, storage restrictions, verification completion/sign-out, guide reopening, copying, and failed verification feedback. Desktop/mobile browser checks cover actual native dialog focus isolation/restoration, Escape, image loading, scrolling, viewport fit, and the Account destination using isolated presentation markup. No real user's verification state is changed for testing.
 
 ## Visibility and standings follow-up
 
@@ -127,14 +135,14 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 
 | Command/check | Result |
 |---|---|
-| `npm test` | **PASS: 103 tests in 23 files.** Adds verified-profile page/API gates, fresh database-derived session flags, verification-route completion, and IST parsing/display across browser timezones to the existing auth/contest/scoring/moderation coverage. |
+| `npm test` | **PASS: 113 tests in 24 files.** Adds screenshot onboarding visibility/dismissal, guide reopening, copy/verification feedback to the existing verified-profile gates, fresh session flags, verification-route completion, IST, auth/contest/scoring/moderation coverage. |
 | `npm run typecheck` | **PASS** |
 | `npm run lint` | **PASS** |
 | `npm run build` | **PASS**, production Next.js build with all application/API routes |
 | `npm run db:generate` | **PASS**, no schema drift after initial migration generation |
 | `npm audit --omit=dev` | **PASS**, zero production dependency vulnerabilities reported |
 | `npm run leetcode:smoke -- lee215` | **PASS**, real endpoint returned 20 accepted records with numeric IDs/slugs/dates and an available profile |
-| `PLAYWRIGHT_CHANNEL=chrome npm run test:browser` | **PASS: 12 browser checks**, including verification-gate presentation/account navigation, public privacy/rules pages, desktop/mobile navigation, delayed feedback, keyboard access, reduced motion, skeletons, and overflow checks. |
+| `PLAYWRIGHT_CHANNEL=chrome npm run test:browser` | **PASS: 14 browser checks**, including welcome-dialog keyboard behavior and responsive screenshots, verification-gate presentation/account navigation, public privacy/rules pages, desktop/mobile navigation, delayed feedback, keyboard access, reduced motion, skeletons, and overflow checks. |
 | Default Playwright browser download | Initially **BLOCKED** by CDN timeout/DNS failure; browser execution succeeded using installed Chrome instead |
 | `git diff --check` | **PASS** |
 | Full `npm audit` | **9 development-only transitive advisories** in ESLint globbing and Drizzle CLI dependencies; compatible upstream remediation still pending. Breaking forced downgrades were not applied. |

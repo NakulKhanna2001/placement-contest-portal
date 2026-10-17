@@ -89,6 +89,8 @@ npm run dev
 3. As an administrator, visit `/admin` to schedule or draft a contest, manage grants, review reports, and inspect the audit trail.
 4. Students use `/` during a contest and `/results` afterward.
 
+**Verification help:** Unverified members see a welcome popup with a five-step screenshot guide. Choose **Start verification** to open the Account form, generate and copy your code, then follow **Edit Profile → ReadMe → Save** on LeetCode. The same guide can be expanded anytime while linking on Account. Closing the popup is remembered per member for the browser tab; it does not unlock contests. Verified members do not see the popup.
+
 Completed results include the full problem set for verified participants to practice, even when no solves were submitted. All displayed times, tooltips, scheduling inputs, and manual-grant inputs use **India Standard Time (IST)**. See [demo verification](docs/demo-verification.md) for the live demo and isolated scoring checks.
 
 **Editing:** In `/admin`, expand an existing contest, select **Edit contest**, make changes, and select **Save changes**. Drafts and future scheduled contests are editable; started contests are locked. The editor uses **IST** and records changes in the audit log.
