@@ -1,4 +1,9 @@
 import { z } from "zod";
+import { campuses } from "./student-profile";
+export const studentDetailsInput = z.object({
+  campus: z.enum(campuses, { error: "Select your NST campus." }),
+  studyYear: z.number({ error: "Select your year of study." }).int().min(1).max(4),
+});
 export const id = z.number().int().positive();
 export const text = z.string().trim().min(1).max(2000);
 export const proofUrl = z.url().max(2000).refine(v => ["https:", "http:"].includes(new URL(v).protocol), "Use an HTTP or HTTPS evidence URL");

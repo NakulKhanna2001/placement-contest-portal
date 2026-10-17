@@ -85,11 +85,13 @@ npm run dev
 ```
 
 1. Sign in with a verified Google account. New users become students unless explicitly listed in `ADMIN_EMAILS`.
-2. Visit `/account`, put the verification code in **ReadMe** under LeetCode profile settings, and confirm ownership. Verification is required to open contest problems or standings; complete it **before the contest starts** to submit solves.
+2. Visit `/account`, put the verification code in **ReadMe** under LeetCode profile settings, then enter your **LeetCode username, NST campus, and year of study** to confirm ownership. All three are mandatory; Verify account stays disabled until they are filled. Verification is required to open contest problems or standings; complete it **before the contest starts** to submit solves.
 3. As an administrator, visit `/admin` to schedule or draft a contest, manage grants, review reports, and inspect the audit trail.
 4. Students use `/` during a contest and `/results` afterward.
 
 **Verification help:** Unverified members see a welcome popup with a five-step screenshot guide. Choose **Start verification** to open the Account form, generate and copy your code, then follow **Edit Profile → ReadMe → Save** on LeetCode. The same guide can be expanded anytime while linking on Account. Closing the popup is remembered per member for the browser tab; it does not unlock contests. Verified members do not see the popup.
+
+**Campus/year standings:** Choose **Sonepat, Bengaluru, Pune, or Hyderabad**, and **1st–4th year**. Both details appear beneath student names on live and completed-contest leaderboards. Filter by campus, year, or both to see ranks within that group; overall ranks remain visible for comparison, and ties keep the existing scoring rules. Filters use current self-reported profile details and stay selected during live updates. Previously verified students receive an Account-page completion prompt; their verification and scores are preserved, and they appear in overall standings until they fill in their details. Campus/year can be corrected on Account without relinking LeetCode.
 
 Completed results include the full problem set for verified participants to practice, even when no solves were submitted. All displayed times, tooltips, scheduling inputs, and manual-grant inputs use **India Standard Time (IST)**. See [demo verification](docs/demo-verification.md) for the live demo and isolated scoring checks.
 

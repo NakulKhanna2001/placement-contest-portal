@@ -19,6 +19,7 @@ const messages: Record<string, string> = {
   username_taken: "That LeetCode account is already linked to another student.",
   already_linked: "Your LeetCode account is already linked.",
   invalid_username: "Enter a valid LeetCode username.",
+  invalid_student_details: "Select your NST campus and year of study.",
   duplicate: "You have already reported this participant in this contest.",
   self_report: "You cannot report yourself.",
   contest_not_ended: "Reports open after the contest ends.",

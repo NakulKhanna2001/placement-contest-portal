@@ -9,13 +9,14 @@ import { POST as grant } from "@/app/api/admin/grants/route";
 import { POST as contest } from "@/app/api/admin/contests/route";
 import { POST as review, GET as reports } from "@/app/api/admin/reports/route";
 import { POST as linkAccount } from "@/app/api/link/route";
+import { POST as profile } from "@/app/api/profile/route";
 import { GET as leaderboard } from "@/app/api/leaderboard/route";
 import { readBody } from "@/lib/http";
 const request = (body = "{}", headers: Record<string, string> = {}) => new Request("https://portal.test/api/submit", { method: "POST", headers: { "content-type": "application/json", ...headers }, body });
 beforeEach(() => { auth.mockReset(); auth.mockResolvedValue(null); });
 describe("HTTP boundaries", () => {
   it("requires authentication for every student write and leaderboard request", async () => {
-    for (const handler of [submit, report, linkAccount]) expect((await handler(request())).status).toBe(401);
+    for (const handler of [submit, report, linkAccount, profile]) expect((await handler(request())).status).toBe(401);
     expect((await leaderboard(new Request("https://portal.test/api/leaderboard?contestId=1"))).status).toBe(401);
   });
   it("rejects student access to all admin endpoints before touching the database", async () => {
@@ -27,6 +28,7 @@ describe("HTTP boundaries", () => {
     auth.mockResolvedValue({ user: { id: 1, role: "admin", leetcodeVerified: true } });
     expect((await submit(request("{"))).status).toBe(400);
     expect((await submit(request("{}", { origin: "https://evil.test" }))).status).toBe(403);
+    expect((await profile(request(JSON.stringify({ campus: "pune", studyYear: 2 }), { origin: "https://evil.test" }))).status).toBe(403);
     expect((await review(request(JSON.stringify({ reportId: 1, decision: { kind: "anything" } })))).status).toBe(400);
     expect((await grant(request(JSON.stringify({ action: "grant", userIds: [1], problemId: 1, acceptedAt: "invalid", reason: "r", evidence: "https://example.com" })))).status).toBe(400);
     await expect(readBody(request("{}", { "content-type": "text/plain" }), z.object({}))).rejects.toMatchObject({ status: 415 });

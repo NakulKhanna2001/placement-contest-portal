@@ -62,7 +62,7 @@ export default async function Results({ params }: { params: Promise<{ contestId:
       })}
       {!problemList.length && <p className="muted">No problems were configured for this contest.</p>}
     </section>
-    <section className="card"><div className="section-head"><h2>{provisional ? "Current standings" : "Final standings"}</h2><span className="status-line">{board.length} ranked participants</span></div><BoardTable rows={board} /></section>
+    <section className="card"><div className="section-head"><h2>{provisional ? "Current standings" : "Final standings"}</h2><span className="status-line">{board.length} ranked participants</span></div><BoardTable key={contestId} rows={board} /></section>
     <div className="section-head"><h2>Solves by participant</h2><span className="status-line">{rows.length} solve records</span></div>
     {[...participants.entries()].map(([id, participant]) => <section className="card" key={id}>
       <div className="section-head"><h2>{participant.name}</h2>{disqualified.has(id) && <span className="badge hard">Disqualified</span>}</div>

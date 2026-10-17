@@ -7,6 +7,7 @@ import { isAllowedEmail } from "@/lib/auth-rules";
 import { beginLink, confirmLink } from "@/services/verification";
 afterEach(closeTestDbs);
 const now = new Date("2026-10-17T09:00:00Z");
+const details = { campus: "pune" as const, studyYear: 1 };
 describe("external boundaries", () => {
   it("accepts only an exact, nonempty college email domain", () => {
     expect(isAllowedEmail("A@College.edu", "college.edu")).toBe(true);
@@ -27,14 +28,14 @@ describe("external boundaries", () => {
     const [a, b] = await db.insert(users).values([{ email: "a@c.edu" }, { email: "b@c.edu" }]).returning();
     let bio = "";
     const client = { recentAccepted: async () => [], profileBio: async () => bio };
-    expect(await confirmLink(db, client, a.id, "Asha", now)).toMatchObject({ reason: "no_token" });
+    expect(await confirmLink(db, client, a.id, "Asha", now, details)).toMatchObject({ reason: "no_token" });
     bio = await beginLink(db, a.id);
-    expect(await confirmLink(db, client, a.id, "Asha", now)).toEqual({ ok: true, username: "asha" });
-    expect(await confirmLink(db, client, a.id, "different", now)).toMatchObject({ reason: "already_linked" });
+    expect(await confirmLink(db, client, a.id, "Asha", now, details)).toEqual({ ok: true, username: "asha" });
+    expect(await confirmLink(db, client, a.id, "different", now, details)).toMatchObject({ reason: "already_linked" });
     bio = await beginLink(db, b.id);
-    expect(await confirmLink(db, client, b.id, "ASHA", now)).toMatchObject({ reason: "username_taken" });
+    expect(await confirmLink(db, client, b.id, "ASHA", now, details)).toMatchObject({ reason: "username_taken" });
     bio = "wrong token";
-    expect(await confirmLink(db, client, b.id, "bo", now)).toMatchObject({ reason: "token_missing" });
+    expect(await confirmLink(db, client, b.id, "bo", now, details)).toMatchObject({ reason: "token_missing" });
     expect((await db.select().from(users).where(eq(users.id, a.id)))[0].leetcodeVerifiedAt).toEqual(now);
     await expect(db.insert(users).values({ email: "c@c.edu", leetcodeUsername: "ASHA" })).rejects.toThrow();
   });

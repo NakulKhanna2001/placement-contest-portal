@@ -16,7 +16,7 @@ export function VerificationGuide() {
           <img src={`/verification/${step.file}.webp`} width={step.width} height={step.height} alt={step.alt} loading="lazy" decoding="async" />
         </a>
       </li>)}
-      <li><h3>Return here and verify</h3><p>Enter your <strong>LeetCode username</strong> on the Account page, then click <strong>Verify account</strong>. Use your username, not your email or display name.</p><p>You can remove the code from ReadMe after verification succeeds. Your linked username cannot be changed.</p></li>
+      <li><h3>Return here and verify</h3><p>Enter your <strong>LeetCode username</strong> and select your <strong>NST campus</strong> and <strong>year of study</strong> on the Account page. All three are required to enable <strong>Verify account</strong>. Use your username, not your email or display name.</p><p>You can remove the code from ReadMe after verification succeeds. Your linked username cannot be changed.</p></li>
     </ol>
     <p className="card-footnote">Screenshots are examples — use your own account and code. Tap a screenshot to enlarge it.</p>
   </div>;

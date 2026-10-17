@@ -1,15 +1,21 @@
 import { sql } from "drizzle-orm";
 import { pgTable, serial, text, timestamp, integer, real, uniqueIndex, index, check } from "drizzle-orm/pg-core";
+import { campuses } from "../lib/student-profile";
 const time = (name: string) => timestamp(name, { withTimezone: true });
 export const users = pgTable("users", {
   id: serial("id").primaryKey(), email: text("email").notNull().unique(), name: text("name").notNull().default(""),
   role: text("role", { enum: ["student", "admin"] }).notNull().default("student"),
   leetcodeUsername: text("leetcode_username"), leetcodeVerifiedAt: time("leetcode_verified_at"), verifyToken: text("verify_token"),
+  campus: text("campus", { enum: campuses }), studyYear: integer("study_year"),
   lastAttemptAt: time("last_attempt_at"), lastLinkAttemptAt: time("last_link_attempt_at"),
   // Legacy scheduling column retained for migration compatibility; no cron uses it.
   nextSnapshotAt: time("next_snapshot_at"),
   createdAt: time("created_at").notNull().defaultNow(),
-}, t => [uniqueIndex("users_leetcode_lower").on(sql`lower(${t.leetcodeUsername})`)]);
+}, t => [
+  uniqueIndex("users_leetcode_lower").on(sql`lower(${t.leetcodeUsername})`),
+  check("users_campus", sql`${t.campus} in ('sonepat', 'bengaluru', 'pune', 'hyderabad')`),
+  check("users_study_year", sql`${t.studyYear} between 1 and 4`),
+]);
 export const contests = pgTable("contests", {
   id: serial("id").primaryKey(), title: text("title").notNull(), startsAt: time("starts_at").notNull(), endsAt: time("ends_at").notNull(),
   status: text("status", { enum: ["draft", "scheduled"] }).notNull().default("scheduled"),

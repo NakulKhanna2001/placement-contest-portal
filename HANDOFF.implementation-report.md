@@ -7,7 +7,17 @@ Date: 2026-10-15
 - Handoff: [`HANDOFF.md`](HANDOFF.md)
 - Implementation plan: [`docs/superpowers/plans/2026-10-15-weekly-contest-portal.md`](docs/superpowers/plans/2026-10-15-weekly-contest-portal.md)
 - Source of truth: [`docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md`](docs/superpowers/specs/2026-10-15-weekly-contest-portal-design.md)
-- **Status:** deployed on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. Google signup is public, with students by default and explicit admin emails. Verified LeetCode profiles are required for participant-facing contest access; displayed/input times use IST. Recent updates add screenshot verification onboarding and automatic problem URL-to-slug extraction in the contest editor. **119 automated tests, 14 browser checks, type checking, lint, and the production build pass locally**.
+- **Status:** deployed on Vercel Hobby with **zero cron jobs**, at **https://nst-lc-grind.vercel.app**. Google signup is public, with students by default and explicit admin emails. Verified LeetCode profiles are required for participant-facing contest access; displayed/input times use IST. The latest update collects mandatory campus/year at verification and adds filtered campus/year standings. **130 automated tests, 16 browser checks, type checking, lint, and the production build pass locally**.
+
+## Campus/year profiles and standings
+
+LeetCode confirmation now requires a username, one of **Sonepat / Bengaluru / Pune / Hyderabad**, and **1st / 2nd / 3rd / 4th year**. The Verify account button stays disabled until all three are present. HTTP validation rejects missing/out-of-range details before consuming the verification rate limit or contacting LeetCode; the service validates details again. Successful ownership verification writes the username, timestamp, campus, and year atomically; failed verification stores none of them.
+
+Already-verified members receive a persistent completion reminder and an Account form to fill in or correct their campus/year through an authenticated, same-origin endpoint. Only the signed-in user's campus/year can change; verified username, verification time, roles, and scores are preserved. Values are self-reported. Live and completed leaderboards show campus/year beneath each name, with independent/combinable filters. Group ranks are recomputed from the globally ordered board, preserving exact ties, while overall ranks remain visible. Filters survive polling and reset between contests. Profiles with missing details appear only in the applicable unfiltered standings, labelled clearly; no campus/year is inferred. Filters use current profile details rather than historical snapshots.
+
+Migration `0002_noisy_sunset_bain.sql` adds two nullable columns and check constraints. It was exercised in PGlite, then applied to the connected Neon database after a private backup. Independent before/after queries confirmed existing verification records and scores were preserved and three migrations are now applied. The leaderboard cache key is versioned to avoid serving the old row shape after deployment. Privacy, onboarding, and operator documentation describe the new fields.
+
+Regression coverage includes missing/invalid confirmation values, failure atomicity, database constraints, existing-user completion and ownership isolation, disabled/enabled form behavior, filter intersections, group ranks/ties, empty results, live updates, and desktop/mobile sidebar layout.
 
 ## Full LeetCode problem URL input
 
@@ -139,14 +149,14 @@ The subsequent exact-email access exception is an explicit owner-approved setup 
 
 | Command/check | Result |
 |---|---|
-| `npm test` | **PASS: 119 tests in 25 files.** Adds full problem URL parsing and create/edit input coverage to screenshot onboarding, verified-profile gates, fresh session flags, verification-route completion, IST, auth/contest/scoring/moderation coverage. |
+| `npm test` | **PASS: 130 tests in 28 files.** Adds mandatory campus/year verification, profile completion, database constraints, and filtered leaderboard coverage to the existing ownership, contest, scoring, UI, and moderation checks. |
 | `npm run typecheck` | **PASS** |
 | `npm run lint` | **PASS** |
 | `npm run build` | **PASS**, production Next.js build with all application/API routes |
 | `npm run db:generate` | **PASS**, no schema drift after initial migration generation |
 | `npm audit --omit=dev` | **PASS**, zero production dependency vulnerabilities reported |
 | `npm run leetcode:smoke -- lee215` | **PASS**, real endpoint returned 20 accepted records with numeric IDs/slugs/dates and an available profile |
-| `PLAYWRIGHT_CHANNEL=chrome npm run test:browser` | **PASS: 14 browser checks**, including welcome-dialog keyboard behavior and responsive screenshots, verification-gate presentation/account navigation, public privacy/rules pages, desktop/mobile navigation, delayed feedback, keyboard access, reduced motion, skeletons, and overflow checks. |
+| `PLAYWRIGHT_CHANNEL=chrome npm run test:browser` | **PASS: 16 browser checks**, including campus/year sidebar layout and accessible filters, welcome-dialog keyboard behavior and responsive screenshots, verification-gate presentation/account navigation, public privacy/rules pages, desktop/mobile navigation, delayed feedback, keyboard access, reduced motion, skeletons, and overflow checks. |
 | Default Playwright browser download | Initially **BLOCKED** by CDN timeout/DNS failure; browser execution succeeded using installed Chrome instead |
 | `git diff --check` | **PASS** |
 | Full `npm audit` | **9 development-only transitive advisories** in ESLint globbing and Drizzle CLI dependencies; compatible upstream remediation still pending. Breaking forced downgrades were not applied. |

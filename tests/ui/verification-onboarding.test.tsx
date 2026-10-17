@@ -90,9 +90,14 @@ it("keeps the guide reopenable while generating, copying, and verifying a real f
   await user.click(guide);
   expect(screen.getAllByRole("img")).toHaveLength(3);
   await user.type(screen.getByLabelText("LeetCode username"), "student");
+  expect((screen.getByRole("button", { name: "Verify account" }) as HTMLButtonElement).disabled).toBe(true);
+  await user.selectOptions(screen.getByLabelText("Campus"), "sonepat");
+  expect((screen.getByRole("button", { name: "Verify account" }) as HTMLButtonElement).disabled).toBe(true);
+  await user.selectOptions(screen.getByLabelText("Year of study"), "2");
+  expect((screen.getByRole("button", { name: "Verify account" }) as HTMLButtonElement).disabled).toBe(false);
   await user.click(screen.getByRole("button", { name: "Verify account" }));
   await waitFor(() => expect(refresh).toHaveBeenCalledOnce());
-  expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({ action: "confirm", username: "student" });
+  expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({ action: "confirm", username: "student", campus: "sonepat", studyYear: 2 });
 });
 
 it("retains the code and form with actionable feedback if copying or verification fails", async () => {
@@ -103,8 +108,28 @@ it("retains the code and form with actionable feedback if copying or verificatio
   await user.click(screen.getByRole("button", { name: "Copy code" }));
   expect(screen.getByRole("status").textContent).toContain("select and copy");
   await user.type(screen.getByLabelText("LeetCode username"), "student");
+  await user.selectOptions(screen.getByLabelText("Campus"), "hyderabad");
+  await user.selectOptions(screen.getByLabelText("Year of study"), "4");
   await user.click(screen.getByRole("button", { name: "Verify account" }));
   await waitFor(() => expect(screen.getByRole("status").textContent).toContain("ReadMe"));
   expect(screen.getByText("contest-existing-code")).toBeTruthy();
   expect(refresh).not.toHaveBeenCalled();
+  expect((screen.getByLabelText("Campus") as HTMLSelectElement).value).toBe("hyderabad");
+  expect((screen.getByLabelText("Year of study") as HTMLSelectElement).value).toBe("4");
+});
+
+it("keeps verification disabled until all three required fields are filled", async () => {
+  const user = userEvent.setup();
+  render(<LinkForm initialToken="contest-code" />);
+  const verify = screen.getByRole("button", { name: "Verify account" }) as HTMLButtonElement;
+  expect(verify.disabled).toBe(true);
+  await user.selectOptions(screen.getByLabelText("Campus"), "pune");
+  await user.selectOptions(screen.getByLabelText("Year of study"), "1");
+  expect(verify.disabled).toBe(true);
+  await user.type(screen.getByLabelText("LeetCode username"), "   ");
+  expect(verify.disabled).toBe(true);
+  await user.type(screen.getByLabelText("LeetCode username"), "student");
+  expect(verify.disabled).toBe(false);
+  await user.selectOptions(screen.getByLabelText("Campus"), "");
+  expect(verify.disabled).toBe(true);
 });

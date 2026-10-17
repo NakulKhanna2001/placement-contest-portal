@@ -127,6 +127,12 @@ main, .workspace { min-width: 0; }
 .locked-message p { margin: 0; font-size: 14px; }
 .live-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--green); }
 .rank-top { color: var(--accent); font-weight: 600; }
+.board-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 18px; }
+.board-filters label { display: grid; gap: 6px; font-size: 12px; font-weight: 500; }
+.board-filter-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; justify-content: space-between; margin: 12px 0 6px; }
+.board-filter-summary .status-line { margin: 0; }
+.board-filter-summary button { padding: 6px 10px; min-height: 36px; font-size: 12px; }
+.board-profile { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; }
 
 input, select, textarea { width: 100%; min-width: 0; padding: 10px 12px; background: #fff; border: 1px solid #cdd3dc; border-radius: 5px; color: var(--ink); font-size: 14px; }
 input::placeholder, textarea::placeholder { color: #89919c; }
@@ -178,6 +184,7 @@ details[open] > summary { margin-bottom: 17px; }
 .avatar { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: #f0f2f5; color: #647080; font-size: 12px; font-weight: 600; }
 .avatar-large { width: 44px; height: 44px; font-size: 15px; }
 .linked-account .button { margin-top: 6px; }
+.student-details { margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--line); }
 .verification-help { padding: 16px; margin: 0 0 22px; border: 1px solid var(--line); border-radius: 6px; }
 .verification-steps { margin: 0; padding-left: 24px; }
 .verification-steps > li { padding-left: 4px; margin-bottom: 26px; }

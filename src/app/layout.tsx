@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { signIn, signOut } from "@/auth";
-import { getSession } from "@/services/viewer";
+import { getSession, getViewer } from "@/services/viewer";
+import { hasVerifiedLeetCode } from "@/lib/contest-access";
+import { hasStudentDetails } from "@/lib/student-profile";
 import { Navigation, NavItem } from "./components/navigation";
 import { AccountControlsSkeleton } from "./components/skeleton";
 import { Icon } from "./components/ui-icon";
@@ -34,6 +36,12 @@ async function VerificationOnboarding() {
   return <VerificationWelcome member={session?.user.id ? { id: session.user.id, leetcodeVerified: session.user.leetcodeVerified } : null} />;
 }
 
+async function StudentProfileNotice() {
+  const viewer = await getViewer();
+  if (!hasVerifiedLeetCode(viewer) || hasStudentDetails(viewer)) return null;
+  return <p className="notice setup-notice">Complete your student profile: add your campus and year to appear in your classmates’ standings. <Link href="/account#student-details">Add student details</Link></p>;
+}
+
 // The shell does not await auth or Postgres. Each dynamic region streams within
 // its own boundary, so navigation stays usable while the database wakes up.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -44,7 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <Navigation><Suspense fallback={<AccountControlsSkeleton />}><AccountControls /></Suspense></Navigation>
     </div></header>
     <div className="workspace">
-      <div id="content" className="shell" tabIndex={-1}>{children}</div>
+      <div id="content" className="shell" tabIndex={-1}><Suspense fallback={null}><StudentProfileNotice /></Suspense>{children}</div>
       <footer className="site-footer"><span>NST LC Grind</span><div className="footer-links"><Link href="/privacy">Privacy</Link><Link href="/terms">Rules</Link></div><a href="https://leetcode.com" target="_blank" rel="noreferrer">Problems on LeetCode <Icon name="external" size={12} /></a></footer>
     </div>
     <Suspense fallback={null}><VerificationOnboarding /></Suspense>

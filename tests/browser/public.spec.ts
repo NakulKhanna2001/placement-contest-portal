@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ContentSkeleton } from "../../src/app/components/skeleton";
 import { VerificationGate } from "../../src/app/components/verification-gate";
 import { VerificationWelcome } from "../../src/app/components/verification-welcome";
+import { BoardTable } from "../../src/app/live-board";
 test("public pages render, navigate and fit the viewport without credentials", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", e => errors.push(e.message));
@@ -139,4 +140,26 @@ test("welcome guide screenshots fit the modal and native keyboard focus stays in
   await dialog.evaluate((element: HTMLDialogElement) => element.showModal());
   await start.click();
   await expect(page).toHaveURL(/\/account#leetcode-verification$/);
+});
+
+test("campus/year standings fit the live sidebar and expose accessible filters", async ({ page }) => {
+  await page.goto("/");
+  const board = createElement(BoardTable, { rows: [
+    { userId: 1, rank: 1, name: "Asha", points: 18, hardsSolved: 1, campus: "sonepat", studyYear: 1 },
+    { userId: 2, rank: 2, name: "Bo", points: 13.5, hardsSolved: 0, campus: "bengaluru", studyYear: 4 },
+    { userId: 3, rank: 3, name: "Chen", points: 5, hardsSolved: 0, campus: "hyderabad", studyYear: 2 },
+  ] });
+  const html = renderToStaticMarkup(createElement("section", { className: "card leaderboard-card", style: { maxWidth: 400 } }, createElement("h2", null, "Leaderboard"), board));
+  await page.locator("#content").evaluate((element, markup) => { element.innerHTML = markup; }, html);
+  await expect(page.getByLabel("Filter by campus")).toBeVisible();
+  await expect(page.getByLabel("Filter by year")).toBeVisible();
+  await expect(page.getByText("Sonepat · 1st year", { exact: true })).toBeVisible();
+  await expect(page.getByText("Bengaluru · 4th year", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const table = page.getByRole("table");
+  expect(await table.evaluate(element => element.scrollWidth <= element.parentElement!.clientWidth)).toBe(true);
+  await page.getByLabel("Filter by campus").focus();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("Filter by year")).toBeFocused();
+  await page.screenshot({ path: test.info().outputPath("campus-year-leaderboard.png"), animations: "disabled" });
 });

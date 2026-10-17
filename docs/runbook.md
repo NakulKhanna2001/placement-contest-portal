@@ -10,7 +10,7 @@ The current workspace already has working Neon and Google OAuth settings. See [C
 4. Configure a Google OAuth **Web application** client with redirect URI `http://localhost:3000/api/auth/callback/google` locally and `https://YOUR_HOST/api/auth/callback/google` in the deployment. Set `ALLOW_ALL_GOOGLE_ACCOUNTS=true` for public sign-in. With that flag disabled, `ALLOWED_EMAIL_DOMAIN` and `ALLOWED_EMAILS` provide restricted access. Google must return `email_verified: true`. Complete Google Branding with the app home page, `/privacy`, and `/terms`, then publish the External OAuth app for public access.
 5. Add administrator email addresses to `ADMIN_EMAILS` (comma separated; they must also satisfy the current sign-in policy). On Google sign-in, the matching user is created/upserted and the role is synchronized with this list. Changes to this list take effect when that user signs in again. Existing sessions read roles from the database on each request.
 6. Generate a high-entropy `AUTH_SECRET` (for example, `openssl rand -base64 32`). Keep its value out of Git. No cron secret is needed.
-7. Run `npm run dev`, sign in, and verify a LeetCode account in `/account` using the code in **ReadMe** under LeetCode profile settings. The account becomes permanently linked. Contest pages, standings, submissions, and reports require a verified profile. Students must finish verification **before** the contest starts to submit solves.
+7. Run `npm run dev`, sign in, and verify a LeetCode account in `/account` using the code in **ReadMe** under LeetCode profile settings. Username, campus, and year of study are mandatory in the confirmation request. The account becomes permanently linked. Contest pages, standings, submissions, and reports require a verified profile. Students must finish verification **before** the contest starts to submit solves.
 
 No real credentials are needed for `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, or the public browser smoke tests.
 
@@ -25,6 +25,7 @@ In Vercel → project **Settings → Environment Variables**, edit `ADMIN_EMAILS
 - Accepted submissions are archived only when a user submits a link. Keep compute in `iad1`, near the existing Neon database. `.vercelignore` excludes local secrets and generated artifacts from CLI uploads.
 - Verify that the deployment can reach both Postgres and `https://leetcode.com/graphql`. Production uses a small connection pool and disables prepared statements for compatibility with transaction poolers.
 - Run the authenticated preview load check below before the first public contest. Production OAuth and database connectivity need real-environment checks; local tests cannot validate provider settings.
+- Apply migration `0002_noisy_sunset_bain.sql` before deploying campus/year collection. It adds nullable `users.campus` and `users.study_year` with database checks for the four campuses and years 1–4. Existing accounts retain their verified usernames/timestamps and scores; do not invent campus/year values for them. A persistent reminder directs already-verified members to Account to complete their details.
 
 ## Before each contest
 
@@ -51,6 +52,7 @@ The `0001` migration adds a `revision` counter to existing contests with a defau
 ## During the contest
 
 - The leaderboard fetches its small API response about every 12 seconds while the page is visible. It does not refresh the entire page. Successful submissions trigger a prompt board update.
+- Campus and year filters work independently or together on live and completed standings. They filter the full cached board locally and assign ranks within the selected group, retaining exact ties and showing overall rank for context. Existing profiles without campus/year stay in overall standings; they are not assigned to a cohort. Profile corrections on Account are reflected after the next cache/poll refresh. Both live and historical filters use **current** profile details, not a contest-time snapshot.
 - Problem-page refreshes occur at the next server-calculated batch/end/grace boundary, with at most once-a-minute background reconciliation. Hidden tabs pause work and refresh when visible again. Client time never authorizes unlocks or scores.
 - Every batch has an inclusive one-hour acceptance window. The default bonus includes exactly 15:00. A solve at 15:01 gets base points. LeetCode's timestamp is authoritative.
 - The checker verifies the pasted ID belongs to that student's archive/live accepted list. It counts the earliest known valid acceptance for that problem, even if the later link arrived first. A revoked solve cannot be restored by resubmitting.
