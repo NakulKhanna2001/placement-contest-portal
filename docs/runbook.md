@@ -10,13 +10,15 @@ The current workspace already has working Neon and Google OAuth settings. See [C
 4. Configure a Google OAuth **Web application** client with redirect URI `http://localhost:3000/api/auth/callback/google` locally and `https://YOUR_HOST/api/auth/callback/google` in the deployment. Set `ALLOW_ALL_GOOGLE_ACCOUNTS=true` for public sign-in. With that flag disabled, `ALLOWED_EMAIL_DOMAIN` and `ALLOWED_EMAILS` provide restricted access. Google must return `email_verified: true`. Complete Google Branding with the app home page, `/privacy`, and `/terms`, then publish the External OAuth app for public access.
 5. Add administrator email addresses to `ADMIN_EMAILS` (comma separated; they must also satisfy the current sign-in policy). On Google sign-in, the matching user is created/upserted and the role is synchronized with this list. Changes to this list take effect when that user signs in again. Existing sessions read roles from the database on each request.
 6. Generate a high-entropy `AUTH_SECRET` (for example, `openssl rand -base64 32`). Keep its value out of Git. No cron secret is needed.
-7. Run `npm run dev`, sign in, and verify a LeetCode account in `/account` using the code in **ReadMe** under LeetCode profile settings. Username, campus, and year of study are mandatory in the confirmation request. The account becomes permanently linked. Contest pages, standings, submissions, and reports require a verified profile. Students must finish verification **before** the contest starts to submit solves.
+7. Run `npm run dev`, sign in, and verify a LeetCode account in `/account` using the code in **ReadMe** under LeetCode profile settings. Username, campus, and year of study are mandatory in the confirmation request. The account becomes permanently linked. Contest pages, standings, submissions, and reports require a verified profile. Students can finish verification during a live contest and participate immediately, within the original problem windows and submission deadline.
 
 No real credentials are needed for `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, or the public browser smoke tests.
 
 ### Adding two or three administrators later
 
 In Vercel → project **Settings → Environment Variables**, edit `ADMIN_EMAILS` to contain the owner's address and the additional exact Google email addresses, separated by commas. Redeploy, then have those users sign out and sign in again. Public registration does not itself grant admin privileges. Removing an address demotes it on its next sign-in; for immediate revocation of an active admin, update the existing database role as well through a controlled administrative operation.
+
+If `ADMIN_EMAILS` is a write-only secret, preserve it and use `ADDITIONAL_ADMIN_EMAILS` for new addresses. Both lists are combined on Google sign-in; a new account receives its admin role on its first verified Google login. Removal requires checking both lists. Admins can preview all problems without linking LeetCode, including drafts through **Admin → contest → View all contest problems**. The preview exception applies only to read access; submitting solves still requires verification and the normal scoring windows.
 
 ## Deployment
 
@@ -33,7 +35,7 @@ In Vercel → project **Settings → Environment Variables**, edit `ADMIN_EMAILS
 2. In `/admin`, schedule three batches by default. Each batch requires **2 Easy, 1 Medium, 1 Hard**, with unique problem slugs across the contest. Prefer less familiar problems. Enter and read all times in **India Standard Time (IST)**, regardless of browser timezone. The application converts inputs to absolute timestamps for storage and scoring.
 3. Confirm the start, end, link deadline, and per-contest bonus/grace settings. Scheduling rejects overlap with another published contest **including its grace period**.
 4. Save as a draft while preparing; publish before the start. Draft problems are never exposed by student endpoints.
-5. Remind students to finish ownership verification before the start and paste links promptly even though linking stays open through grace.
+5. Encourage students to verify early, but allow verification during the live contest. Remind them to paste links promptly even though linking stays open through grace.
 
 ## Editing an existing contest
 
@@ -54,9 +56,10 @@ The `0001` migration adds a `revision` counter to existing contests with a defau
 - The leaderboard fetches its small API response about every 12 seconds while the page is visible. It does not refresh the entire page. Successful submissions trigger a prompt board update.
 - Campus and year filters work independently or together on live and completed standings. They filter the full cached board locally and assign ranks within the selected group, retaining exact ties and showing overall rank for context. Existing profiles without campus/year stay in overall standings; they are not assigned to a cohort. Profile corrections on Account are reflected after the next cache/poll refresh. Both live and historical filters use **current** profile details, not a contest-time snapshot.
 - Problem-page refreshes occur at the next server-calculated batch/end/grace boundary, with at most once-a-minute background reconciliation. Hidden tabs pause work and refresh when visible again. Client time never authorizes unlocks or scores.
-- Every batch has an inclusive one-hour acceptance window. The default bonus includes exactly 15:00. A solve at 15:01 gets base points. LeetCode's timestamp is authoritative.
+- Verifying all four valid solves in a batch immediately reveals the next batch for that student after the submission refresh. This can chain through Batch 3. Others retain scheduled access. The server derives access from existing solves, so deployment needs no migration or rescore and students who already completed a batch qualify immediately.
+- A batch’s earliest eligible time is its scheduled opening or, for early access, the last required acceptance in the preceding completed batch, whichever is earlier (never before contest start). All four prerequisite solves must be verified and valid. **All problems share an inclusive acceptance deadline of scheduled contest end + 60 seconds.** The old hourly closing times no longer restrict scoring. The default bonus ends at scheduled opening + 15:00, inclusive, even when a student starts early. Later eligible acceptances get base points. LeetCode's timestamp is authoritative.
 - The checker verifies the pasted ID belongs to that student's archive/live accepted list. It counts the earliest known valid acceptance for that problem, even if the later link arrived first. A revoked solve cannot be restored by resubmitting.
-- Links remain valid through the inclusive `contest end + grace` deadline. A late **link** is fine; a late **acceptance** is not.
+- Links remain valid through the inclusive `contest end + max(grace, 60 seconds)` deadline. A late **link** is fine; an acceptance after the contest-wide solve deadline is not. Scheduling prevents overlaps through this effective link deadline. Previously rejected batch-window links may be resubmitted; deployment does not automatically award or rescore any records.
 - On a live lookup, the checker saves the student's whole recent accepted list, so another submitted ID from that list can be verified from the archive without another LeetCode call. Other students are not fetched automatically.
 - Remind students to submit promptly: LeetCode exposes only the latest 20 acceptances. A record lost before any on-submit archive captured it requires evidence-backed admin review. Monitor `check_log` outcomes and request failures; there is no scheduled worker to monitor.
 - If LeetCode fails, students see a retryable error. Use manual grants with proof for confirmed exceptions. Do not ask students for LeetCode cookies or source code.
@@ -113,13 +116,13 @@ Optional knobs: `LOAD_CONCURRENCY` (1–200), `LOAD_SECONDS` (1–300). The scri
 
 ## Volunteer dry run before launch
 
-Use ten students and a normal three-hour test contest. Keep the settled one-hour windows; automated tests use injected time to cover boundaries quickly.
+Use ten students and a normal three-hour test contest with hourly releases and the common 3:01:00 solve deadline; automated tests use injected time to cover boundaries quickly.
 
 1. Verify a new Google account can sign in as a student, an unverified email is rejected, and ordinary students cannot access admin APIs.
 2. Verify ownership; confirm an account cannot be swapped or claimed by a second portal account.
 3. Leave the page open across contest start and batch unlock. Confirm no future problem names/links are in the earlier HTML or student API responses.
 4. Submit an accepted solve inside the window. Confirm its bonus and points, then watch leaderboard updates.
-5. Submit a link **after** its batch closes whose acceptance was **inside** the window and remains public or was already archived: it must count. Submit a solve accepted outside the window: it must fail.
+5. Submit a Batch 1 solve accepted during hour 2 or 3: it must earn base points. An acceptance at exactly 3:01:00 must count; 3:01:01 must fail. Paste an eligible archived link during link grace: it must still count.
 6. Repeat during grace and after the deadline. Only the latter must fail.
 7. Exercise an individual grant, bulk grant, revoke, re-grant, and rescore. Inspect audit details.
 8. File reports; try dismiss, revoke, and disqualify. Verify standings update and records are preserved.

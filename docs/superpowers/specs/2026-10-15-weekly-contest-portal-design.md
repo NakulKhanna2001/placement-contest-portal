@@ -13,10 +13,10 @@ A portal for placement-prep: a weekly Saturday contest, open to every student, b
 |---|---|
 | Cadence | One contest per week (Saturday), open to everyone |
 | Length | 3 hours; number of batches is configurable so 4 hours is a config change |
-| Batches | 3 batches, unlocking at 0:00, 1:00, 2:00 |
-| Batch content | 2 Easy + 1 Medium + 1 Hard, each with a 1-hour window |
+| Batches | 3 batches, scheduled at 0:00, 1:00, 2:00; verifying all four solves in the preceding batch unlocks the next batch early for that student (owner update, 2026-10-17) |
+| Batch content | 2 Easy + 1 Medium + 1 Hard; all unlocked problems score until scheduled contest end + 1 minute (owner update, 2026-10-17) |
 | Points | Easy 2, Medium 5, Hard 12 (21 per batch, 63 base maximum) |
-| Multiplier | 1.5x if the submission was accepted within 15 minutes of the batch unlock (configurable) |
+| Multiplier | 1.5x for eligible acceptances through the original scheduled opening + 15 minutes (configurable), including early-access solves |
 | Verification | Student submits a submission link; we match its ID against their public LeetCode accepted list and use LeetCode's timestamp. No "Verify now" button. A quiet background snapshot (every ~5 minutes) archives each participant's recent accepted IDs so late links still verify |
 | Hacking | Community reports cheaters with proof; admins review. No automated detection |
 | Admin grants | Admins can grant a solve manually when LeetCode fails or a student has proof |
@@ -43,12 +43,12 @@ A portal for placement-prep: a weekly Saturday contest, open to every student, b
 ## 4. Scoring and ranking rules
 
 1. A problem is **solved** if the student has an Accepted submission with LeetCode timestamp `T` such that
-   `batch.unlock_at <= T <= batch.unlock_at + 1 hour`.
-2. Points for a solve = `base points x multiplier`, where the multiplier is 1.5 if `T - unlock_at <= 15 minutes`, otherwise 1.0. Points are stored with one decimal.
+   `personal_opening <= T <= contest.ends_at + 1 minute`. Normally `personal_opening = batch.unlock_at`. Once all four valid solves in the immediately preceding batch are verified, its last required LeetCode acceptance becomes an eligible early opening, bounded by contest start and the original scheduled opening. This can chain through subsequent batches. Other participants retain scheduled access. Earlier batches remain scoreable after their original hourly windows.
+2. Points for a solve = `base points x multiplier`, where the multiplier is 1.5 if `T <= scheduled unlock_at + 15 minutes`, otherwise 1.0. Eligible early-access solves also receive the bonus; the cutoff does not move with personal opening. Points are stored with one decimal.
 3. A problem scores once per student: the earliest valid accepted submission counts. Later ones are ignored.
 4. Ranking: total points (desc), then Hard problems solved (desc), then time of the last counted solve (asc).
 5. The timestamp always comes from LeetCode, never from our own clock.
-6. A link can be submitted any time until `contest_end + grace` (grace is 10 minutes, configurable). The solve itself must still fall inside its own problem's window, so linking late costs nothing. After the deadline only an admin can add the solve.
+6. A link can be submitted any time until `contest_end + max(grace, 60 seconds)` (grace is 10 minutes by default, configurable). The solve itself must fall between its personal opening and the common contest end + 1 minute deadline, so linking late costs nothing. After the link deadline only an admin can add the solve.
 7. Disqualified users are excluded from the leaderboard; their solves are kept in the data but flagged.
 
 Base maximum is 63. With every solve inside the multiplier window it would be 94.5.
@@ -98,9 +98,10 @@ Base maximum is 63. With every solve inside the multiplier window it would be 94
 2. Portal shows a token and asks them to put it in their LeetCode profile bio.
 3. Student clicks verify; `verification` fetches the bio and checks for the token.
 4. On success, the username is locked to this user. One LeetCode account maps to one portal account.
+5. Students may complete verification during a live contest and participate immediately. Verification need not precede the contest start; the original problem windows, scoring rules and link deadline still apply. Existing participants' saved solves and points are preserved (owner update, 2026-10-17).
 
 ### 7.2 Submitting a solve
-1. At each `unlock_at`, that batch's problems become visible with links.
+1. At each scheduled `unlock_at`, that batch's problems become visible with links. A student who verifies all four valid solves in the preceding batch sees the next batch early, with its original bonus cutoff and the common contest-wide solve deadline displayed.
 2. The student solves a problem on LeetCode and pastes the submission link into the portal.
 3. The portal extracts the submission ID from the URL (it never fetches the link) and looks it up in the archived `seen_submissions`, then in a live fetch of the student's recent accepted list if it is absent.
 4. If the ID is found, the portal checks that the problem belongs to an open batch, that LeetCode's timestamp is inside the window and that the problem is not already solved.
@@ -110,7 +111,7 @@ Base maximum is 63. With every solve inside the multiplier window it would be 94
 ### 7.3 After the contest
 - The final leaderboard is frozen when the last grace period ends.
 - Students can see, per participant, which problems were solved and when. Source code is never shown because LeetCode keeps it private.
-- Students can file a report with a proof URL and description.
+- Students can file a report with a proof URL and description once the final scoring minute has ended.
 - Admins review, then uphold (disqualify or revoke solves) or dismiss. The leaderboard recalculates and every action goes into `audit_log`.
 
 ### 7.4 Admin grants a solve
@@ -125,7 +126,7 @@ Base maximum is 63. With every solve inside the multiplier window it would be 94
 | Risk | Mitigation |
 |---|---|
 | LeetCode's endpoint is unofficial and may change, throttle or break | `leetcode-client` is isolated; failures are logged; admins can grant solves manually from proof; requests are one per submission, so load is low |
-| LeetCode returns only the last 20 accepted entries | The snapshot job archives IDs every ~5 minutes, so an ID is lost only after more than 20 accepted submissions in that gap. Students must link their account before the contest starts. Admin grants cover anything else |
+| LeetCode returns only the last 20 accepted entries | Students may verify during a live contest and should submit links promptly while acceptances remain visible. Admin grants cover records no longer available for verification |
 | A student submits someone else's link | The ID must appear in the submitting student's own linked-account list, so another account's ID will not match |
 | Account sharing or someone else solving | Community reports with proof; bio-token ownership; one username per account |
 | Traffic spikes at unlock | Cached leaderboard, static problem pages, load test before launch |

@@ -1,20 +1,22 @@
-import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, lte, or, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { batches, contests, problems, solves } from "@/db/schema";
 import { DEFAULTS } from "@/lib/config";
+import { FINAL_SOLVE_SECONDS, linkDeadline, solveDeadline } from "@/lib/contest-timing";
 import { contestInput } from "@/lib/validation";
 import type { Difficulty } from "@/lib/types";
 import { requireAdmin, writeAudit } from "./audit";
 import { HttpError } from "@/lib/errors";
+import { canPreviewProblems, getBatchOpenings } from "./batch-access";
 export interface ProblemInput { difficulty: Difficulty; slug: string; title: string }
 export interface ContestInput { title: string; startsAt: Date; batches: ProblemInput[][]; status?: "draft" | "scheduled"; graceSeconds?: number; bonusWindowSeconds?: number; bonusMultiplier?: number }
 export type ContestRow = typeof contests.$inferSelect;
 export function contestPhase(c: ContestRow, now: Date) {
   if (c.status === "draft") return "draft";
-  return now < c.startsAt ? "scheduled" : now <= c.endsAt ? "live" : +now <= +c.endsAt + c.graceSeconds * 1000 ? "grace" : "ended";
+  return now < c.startsAt ? "scheduled" : now <= solveDeadline(c) ? "live" : now <= linkDeadline(c) ? "grace" : "ended";
 }
 async function assertNoOverlap(db: Db, startsAt: Date, endsAt: Date, grace: number, exceptId = 0) {
-  const [overlap] = await db.select().from(contests).where(and(eq(contests.status, "scheduled"), sql`${contests.id} <> ${exceptId}`, lte(contests.startsAt, new Date(+endsAt + grace * 1000)), sql`${contests.endsAt} + ${contests.graceSeconds} * interval '1 second' >= ${startsAt.toISOString()}::timestamptz`)).limit(1);
+  const [overlap] = await db.select().from(contests).where(and(eq(contests.status, "scheduled"), sql`${contests.id} <> ${exceptId}`, lte(contests.startsAt, linkDeadline({ endsAt, graceSeconds: grace })), sql`${contests.endsAt} + greatest(${contests.graceSeconds}, ${FINAL_SOLVE_SECONDS}) * interval '1 second' >= ${startsAt.toISOString()}::timestamptz`)).limit(1);
   if (overlap) throw new HttpError(409, "Contest overlaps another contest or its submission grace period.");
 }
 export async function createContest(db: Db, raw: ContestInput, actor?: { adminId: number; now: Date }): Promise<number> {
@@ -113,13 +115,16 @@ export async function updateContest(db: Db, raw: ContestInput, actor: {
   });
 }
 export async function findLiveContest(db: Db, now: Date): Promise<ContestRow | null> {
-  return (await db.select().from(contests).where(and(eq(contests.status, "scheduled"), lte(contests.startsAt, now), gte(contests.endsAt, now))).limit(1))[0] ?? null;
+  return (await db.select().from(contests).where(and(eq(contests.status, "scheduled"), lte(contests.startsAt, now), sql`${contests.endsAt} + ${FINAL_SOLVE_SECONDS} * interval '1 second' >= ${now.toISOString()}::timestamptz`)).limit(1))[0] ?? null;
 }
 export async function findContestForSubmission(db: Db, now: Date): Promise<ContestRow | null> {
-  return (await db.select().from(contests).where(and(eq(contests.status, "scheduled"), lte(contests.startsAt, now), sql`${contests.endsAt} + ${contests.graceSeconds} * interval '1 second' >= ${now.toISOString()}::timestamptz`)).limit(1))[0] ?? null;
+  return (await db.select().from(contests).where(and(eq(contests.status, "scheduled"), lte(contests.startsAt, now), sql`${contests.endsAt} + greatest(${contests.graceSeconds}, ${FINAL_SOLVE_SECONDS}) * interval '1 second' >= ${now.toISOString()}::timestamptz`)).limit(1))[0] ?? null;
 }
-export async function visibleProblems(db: Db, contestId: number, now: Date) {
+export async function visibleProblems(db: Db, contestId: number, now: Date, userId?: number) {
+  const adminPreview = await canPreviewProblems(db, userId);
+  const openings = userId === undefined || adminPreview ? new Map<number, Date>() : await getBatchOpenings(db, contestId, userId, now);
+  const accessible = [...openings].filter(([, opensAt]) => opensAt <= now).map(([id]) => id);
   return db.select({ id: problems.id, batchPosition: batches.position, difficulty: problems.difficulty, slug: problems.slug, title: problems.title, points: problems.points, unlockAt: batches.unlockAt, closesAt: batches.closesAt })
     .from(problems).innerJoin(batches, eq(problems.batchId, batches.id)).innerJoin(contests, eq(batches.contestId, contests.id))
-    .where(and(eq(contests.id, contestId), eq(contests.status, "scheduled"), lte(batches.unlockAt, now))).orderBy(asc(batches.position), asc(problems.id));
+    .where(and(eq(contests.id, contestId), adminPreview ? undefined : and(eq(contests.status, "scheduled"), lte(contests.startsAt, now), or(lte(batches.unlockAt, now), inArray(batches.id, accessible))))).orderBy(asc(batches.position), asc(problems.id));
 }

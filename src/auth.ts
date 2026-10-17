@@ -19,7 +19,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ profile, account }) {
       if (account?.provider !== "google" || !isAllowedGoogleProfile(profile, accessPolicy())) return false;
       const email = profile.email.toLowerCase();
-      const role = roleForEmail(email, process.env.ADMIN_EMAILS ?? "");
+      const role = roleForEmail(email, [process.env.ADMIN_EMAILS, process.env.ADDITIONAL_ADMIN_EMAILS].filter(Boolean).join(","));
       const name = profile.name ?? "Student";
       await getDb().insert(users).values({ email, name, role }).onConflictDoUpdate({ target: users.email, set: { name, role } });
       return true;

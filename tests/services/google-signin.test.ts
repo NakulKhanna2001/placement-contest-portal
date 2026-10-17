@@ -16,6 +16,7 @@ beforeEach(() => {
   vi.stubEnv("ALLOWED_EMAIL_DOMAIN", "college.edu");
   vi.stubEnv("ALLOWED_EMAILS", "owner@gmail.com");
   vi.stubEnv("ADMIN_EMAILS", "owner@gmail.com, second@college.edu, third@example.org");
+  vi.stubEnv("ADDITIONAL_ADMIN_EMAILS", "");
 });
 afterEach(async () => { vi.unstubAllEnvs(); await closeTestDbs(); });
 
@@ -40,6 +41,19 @@ it("supports multiple configured admins and resynchronizes roles on the next log
   const rows = await db.select().from(users);
   expect(rows).toHaveLength(3);
   expect(rows.find(u => u.email === "second@college.edu")?.role).toBe("student");
+});
+
+it("appoints an unregistered additional admin on first verified Google login while retaining existing admins", async () => {
+  const db = await createTestDb(); getDb.mockReturnValue(db);
+  vi.stubEnv("ADDITIONAL_ADMIN_EMAILS", "new-admin@gmail.com");
+  expect(await login("new-admin@gmail.com", false)).toBe(false);
+  expect(await db.select().from(users)).toEqual([]);
+  for (const email of ["new-admin@gmail.com", "owner@gmail.com", "second@college.edu"]) {
+    expect(await login(email, true)).toBe(true);
+    expect((await db.select().from(users).where(eq(users.email, email)))[0]).toMatchObject({ role: "admin", leetcodeVerifiedAt: null });
+  }
+  expect(await login("ordinary-student@gmail.com", true)).toBe(true);
+  expect((await db.select().from(users).where(eq(users.email, "ordinary-student@gmail.com")))[0].role).toBe("student");
 });
 
 it("does not create accounts for unverified email or a different provider", async () => {

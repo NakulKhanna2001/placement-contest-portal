@@ -14,6 +14,7 @@ import { LocalDateTime } from "../../components/local-date-time";
 import { Icon } from "../../components/ui-icon";
 import { VerificationRequired } from "../../components/verification-required";
 import { hasVerifiedLeetCode } from "@/lib/contest-access";
+import { linkDeadline, solveDeadline } from "@/lib/contest-timing";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Contest results" };
@@ -23,14 +24,16 @@ export default async function Results({ params }: { params: Promise<{ contestId:
   if (!Number.isSafeInteger(contestId) || contestId <= 0 || !process.env.DATABASE_URL) notFound();
   const viewer = await getViewer();
   if (!viewer) redirect("/api/auth/signin");
-  if (!hasVerifiedLeetCode(viewer)) return <VerificationRequired />;
+  if (viewer.role !== "admin" && !hasVerifiedLeetCode(viewer)) return <VerificationRequired />;
   const catalog = await getContestCatalog();
   const contest = catalog.find(c => c.id === contestId);
   if (!contest) notFound();
   const db = getDb(); const now = new Date();
-  if (now <= contest.endsAt) return <main>
+  const closesAt = solveDeadline(contest);
+  const linksCloseAt = linkDeadline(contest);
+  if (now <= closesAt) return <main>
     <PageHeader title={now < contest.startsAt ? "This contest has not started yet." : "This contest is running."} description="Open the contest page to see its schedule, unlocked problems, and submission form." />
-    <p className="muted">Starts <LocalDateTime value={contest.startsAt.toISOString()} /> · Ends <LocalDateTime value={contest.endsAt.toISOString()} /></p>
+    <p className="muted">Starts <LocalDateTime value={contest.startsAt.toISOString()} /> · Solve deadline <LocalDateTime value={closesAt.toISOString()} /></p>
     <Link className="button" href="/">Open contest</Link>
   </main>;
   const [board, rows, dq, problemList] = await Promise.all([
@@ -45,29 +48,29 @@ export default async function Results({ params }: { params: Promise<{ contestId:
     participant.rows.push(row); participants.set(row.userId, participant);
   }
   const disqualified = new Set(dq.map(d => d.userId));
-  const provisional = +now <= +contest.endsAt + contest.graceSeconds * 1000;
+  const provisional = now <= linksCloseAt;
   const batchPositions = [...new Set(problemList.map(p => p.batchPosition))];
   return <main>
     <PageHeader eyebrow={`Contest ${contest.id}`} title={contest.title} description={provisional ? "Results may change while students submit their remaining links." : "Submissions are closed. The problems remain available for practice."} aside={<span className="badge neutral">{provisional ? "Link grace period" : "Ended"}</span>} />
-    <p className="notice">This contest ended <LocalDateTime value={contest.endsAt.toISOString()} />. {provisional ? <>Links are accepted until <LocalDateTime value={new Date(+contest.endsAt + contest.graceSeconds * 1000).toISOString()} />. <Link href="/">Submit remaining links</Link>.</> : "New practice solves will not change these standings."}</p>
+    <p className="notice">Scoring closed <LocalDateTime value={closesAt.toISOString()} />. {provisional ? <>Links for eligible acceptances are accepted until <LocalDateTime value={linksCloseAt.toISOString()} />. <Link href="/">Submit remaining links</Link>.</> : "New practice solves will not change these standings."}</p>
     <section className="card">
       <div className="section-head"><h2>Problems</h2><span className="status-line">{problemList.length} problems</span></div>
       {batchPositions.map(position => {
         const list = problemList.filter(p => p.batchPosition === position);
         return <div className="archive-batch" key={position}>
           <h3>Batch {position + 1}</h3>
-          <p className="status-line">Original solve window: <LocalDateTime value={list[0].unlockAt.toISOString()} /> — <LocalDateTime value={list[0].closesAt.toISOString()} timeOnly /></p>
+          <p className="status-line">Scheduled opening: <LocalDateTime value={list[0].unlockAt.toISOString()} /> · Solve deadline: <LocalDateTime value={closesAt.toISOString()} timeOnly /></p>
           {list.map(p => <div className="problem" key={p.id}><div><a href={`https://leetcode.com/problems/${p.slug}/`} target="_blank" rel="noreferrer">{p.title} <Icon name="external" size={14} /></a><div className="meta"><span className={`badge ${p.difficulty}`}>{p.difficulty}</span></div></div><span className="points">{p.points}<small> pts</small></span></div>)}
         </div>;
       })}
       {!problemList.length && <p className="muted">No problems were configured for this contest.</p>}
     </section>
-    <section className="card"><div className="section-head"><h2>{provisional ? "Current standings" : "Final standings"}</h2><span className="status-line">{board.length} ranked participants</span></div><BoardTable key={contestId} rows={board} /></section>
+    <section className="card"><div className="section-head"><h2>{provisional ? "Current standings" : "Final standings"}</h2><span className="status-line">{board.length} ranked participants</span></div><BoardTable key={contestId} rows={board} /><p className="card-footnote"><Link href={`/leaderboard?contestId=${contestId}`}>View full leaderboard and solve times</Link></p></section>
     <div className="section-head"><h2>Solves by participant</h2><span className="status-line">{rows.length} solve records</span></div>
     {[...participants.entries()].map(([id, participant]) => <section className="card" key={id}>
       <div className="section-head"><h2>{participant.name}</h2>{disqualified.has(id) && <span className="badge hard">Disqualified</span>}</div>
       <div className="table-wrap"><table><thead><tr><th>Problem</th><th>Accepted at (IST)</th><th>Points</th><th>Status</th></tr></thead><tbody>{participant.rows.map(r => <tr key={r.id}><td>{r.title}</td><td><LocalDateTime value={r.acceptedAt.toISOString()} seconds /></td><td>{r.points}</td><td>{r.status}{r.source === "manual" ? " · admin grant" : ""}</td></tr>)}</tbody></table></div>
-      {viewer.id !== id && <ReportForm contestId={contestId} targetUserId={id} problems={participant.rows.map(r => ({ id: r.problemId, title: r.title }))} />}
+      {viewer.id !== id && hasVerifiedLeetCode(viewer) && <ReportForm contestId={contestId} targetUserId={id} problems={participant.rows.map(r => ({ id: r.problemId, title: r.title }))} />}
     </section>)}
   </main>;
 }

@@ -18,6 +18,7 @@ describe("HTTP boundaries", () => {
   it("requires authentication for every student write and leaderboard request", async () => {
     for (const handler of [submit, report, linkAccount, profile]) expect((await handler(request())).status).toBe(401);
     expect((await leaderboard(new Request("https://portal.test/api/leaderboard?contestId=1"))).status).toBe(401);
+    expect((await leaderboard(new Request("https://portal.test/api/leaderboard?contestId=1&details=1"))).status).toBe(401);
   });
   it("rejects student access to all admin endpoints before touching the database", async () => {
     auth.mockResolvedValue({ user: { id: 1, role: "student" } });
@@ -38,7 +39,10 @@ describe("HTTP boundaries", () => {
     auth.mockResolvedValue({ user: { id: 1, role, leetcodeVerified: false } });
     expect((await submit(request(JSON.stringify({ link: "https://leetcode.com/submissions/detail/1/" })))).status).toBe(403);
     expect((await report(request())).status).toBe(403);
-    expect((await leaderboard(new Request("https://portal.test/api/leaderboard?contestId=1"))).status).toBe(403);
+    if (role === "student") {
+      expect((await leaderboard(new Request("https://portal.test/api/leaderboard?contestId=1"))).status).toBe(403);
+      expect((await leaderboard(new Request("https://portal.test/api/leaderboard?contestId=1&details=1"))).status).toBe(403);
+    }
     // Linking must remain available before verification; an invalid action is a
     // validation error, rather than the contest-access denial above.
     expect((await linkAccount(request(JSON.stringify({ action: "invalid" })))).status).toBe(400);

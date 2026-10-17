@@ -32,6 +32,7 @@ export function NavItem({ href, label }: { href: string; label: string }) {
 export function Navigation({ children }: { children: ReactNode }) {
   return <nav className="navigation" aria-label="Main navigation">
     <NavItem href="/" label="Contests" />
+    <NavItem href="/leaderboard" label="Leaderboard" />
     <NavItem href="/results" label="Results" />
     <NavItem href="/account" label="Account" />
     {children}

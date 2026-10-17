@@ -32,7 +32,7 @@ describe("admin operations", () => {
     const ps = await db.select().from(problems);
     const input = { adminId: admin.id, userId: student.id, problemId: ps[3].id, acceptedAt: at(5), reason: "LeetCode outage", evidence: "https://example.com/proof", now: at(200) };
     await expect(grantSolve(db, { ...input, adminId: student.id })).rejects.toThrow("forbidden");
-    expect(await grantSolve(db, { ...input, acceptedAt: at(61) })).toMatchObject({ reason: "outside_window" });
+    expect(await grantSolve(db, { ...input, acceptedAt: at(181 + 1 / 60) })).toMatchObject({ reason: "outside_window" });
     const g = await grantSolve(db, input);
     expect(g).toMatchObject({ ok: true, points: 18 });
     if (!g.ok) throw new Error("grant failed");

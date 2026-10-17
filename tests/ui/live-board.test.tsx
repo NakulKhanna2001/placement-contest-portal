@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LiveBoard, BoardTable } from "@/app/live-board";
+const at = (minutes: number) => new Date(+new Date("2026-10-17T10:00:00Z") + minutes * 60000);
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 it("shows standings after a submitted solve and does not carry them into another contest", async () => {
@@ -69,4 +70,23 @@ it("keeps filters during live updates and resets them when changing contests", a
   view.rerender(<LiveBoard contestId={2} initial={rows} />);
   expect((screen.getByLabelText("Filter by campus") as HTMLSelectElement).value).toBe("");
   expect(screen.getByText("Asha")).toBeTruthy();
+});
+
+it("shows per-problem points, IST acceptance times and elapsed time, and updates detail cells", async () => {
+  const problems = [
+    { id: 1, label: "B1.A", batchPosition: 0, problem: { title: "Easy A", slug: "easy-1-a", difficulty: "easy" as const, points: 2 } },
+    { id: 2, label: "B2.A", batchPosition: 1, problem: null },
+  ];
+  const solve = { problemId: 1, points: 3, multiplier: 1.5, acceptedAt: at(10).toISOString(), verifiedAt: at(30).toISOString(), source: "auto" as const };
+  const initial = [{ ...rows[0], points: 3, solves: [solve] }];
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ board: [{ ...initial[0], points: 6, solves: [solve, { ...solve, problemId: 2, acceptedAt: at(20).toISOString() }] }], problems }) }));
+  render(<LiveBoard contestId={1} initial={initial} details={{ problems, startsAt: at(0).toISOString() }} />);
+  expect(screen.getByRole("link", { name: /B1.A.*Easy A/ }).getAttribute("href")).toBe("https://leetcode.com/problems/easy-1-a/");
+  expect(screen.getByText("Locked")).toBeTruthy();
+  expect(screen.getByText("+00:10:00")).toBeTruthy();
+  expect(screen.getByText("3:40:00 PM IST")).toBeTruthy();
+  expect(screen.getByText("1.5×")).toBeTruthy();
+  act(() => window.dispatchEvent(new Event("contest:solve")));
+  await waitFor(() => expect(screen.getByText("+00:20:00")).toBeTruthy());
+  expect(fetch).toHaveBeenCalledWith("/api/leaderboard?contestId=1&details=1", expect.anything());
 });

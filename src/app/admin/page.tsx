@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getViewer } from "@/services/viewer";
 import { getDb } from "@/db";
@@ -10,6 +11,7 @@ import { ContentSkeleton } from "../components/skeleton";
 import { Icon } from "../components/ui-icon";
 import { LocalDateTime } from "../components/local-date-time";
 import { auditDetailsInIST } from "@/lib/india-time";
+import { solveDeadline } from "@/lib/contest-timing";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin" };
@@ -38,17 +40,19 @@ async function AdminWorkspace() {
 
   return <div className="admin-workspace" data-page-ready="/admin">
     <div className="admin-summary">
-      <span>{cs.filter(c => c.status === "scheduled" && c.endsAt >= now).length} scheduled</span>
+      <span>{cs.filter(c => c.status === "scheduled" && solveDeadline(c) >= now).length} scheduled</span>
       <span>{cs.filter(c => c.status === "draft").length} drafts</span>
       <span>{pending.length} reports to review</span>
     </div>
     <div className="columns admin-columns"><div>
       <section className="card"><div className="section-head"><h2>Contest scheduling</h2><Icon name="arena" /></div>
-        <details className="create-contest-details"><summary>Create a new contest <span>+</span></summary><p className="muted">Each batch lasts one hour. Enter all times in India Standard Time (IST).</p><ScheduleForm /></details>
+        <details className="create-contest-details"><summary>Create a new contest <span>+</span></summary><p className="muted">Batches release hourly. All problems share a solve deadline one minute after the scheduled contest end. Enter all times in India Standard Time (IST).</p><ScheduleForm /></details>
         <h3 className="subsection-title">Scheduled & draft contests</h3>
         {cs.map(c => <details className="contest-details" key={c.id}>
-          <summary><span>{c.title}</span><span className="badge neutral">{c.status === "draft" ? "Draft" : c.endsAt < now ? "Ended" : c.startsAt > now ? "Scheduled" : "Live"}</span></summary>
+          <summary><span>{c.title}</span><span className="badge neutral">{c.status === "draft" ? "Draft" : solveDeadline(c) < now ? "Ended" : c.startsAt > now ? "Scheduled" : "Live"}</span></summary>
           <p className="muted">#{c.id} · <LocalDateTime value={c.startsAt.toISOString()} /></p>
+          <p><Link className="inline-link" href={`/admin/submissions?contestId=${c.id}`}>View student submissions</Link></p>
+          <details><summary>View all contest problems</summary><p className="muted">Admin preview includes every batch, even before release.</p>{ps.filter(p => p.contestId === c.id).sort((a, b) => a.batchPosition - b.batchPosition || a.id - b.id).map(p => <div className="problem" key={p.id}><div><a href={`https://leetcode.com/problems/${p.slug}/`} target="_blank" rel="noreferrer">{p.title} <Icon name="external" size={14} /></a><div className="meta"><span>Batch {p.batchPosition + 1}</span><span className={`badge ${p.difficulty}`}>{p.difficulty}</span></div></div></div>)}</details>
           {c.status === "draft" || c.startsAt > now ? <EditContest initial={editorData(c)} /> : <p className="muted">Editing is locked because this contest has started.</p>}
           {c.status === "draft" && c.startsAt > now && <PublishForm contestId={c.id} />}
           {c.status === "draft" && c.startsAt <= now && <p className="card-footnote">Edit the start time before publishing this draft.</p>}
@@ -76,7 +80,7 @@ async function AdminWorkspace() {
 
 export default function Admin() {
   const configured = !!process.env.DATABASE_URL && !!process.env.AUTH_SECRET;
-  return <main><PageHeader title="Admin" description="Schedule contests and review reports." />
+  return <main><PageHeader title="Admin" description="Schedule contests and review reports." aside={<Link className="button button-secondary" href="/admin/submissions">Student submissions</Link>} />
     {configured ? <Suspense fallback={<ContentSkeleton variant="admin" />}><AdminWorkspace /></Suspense> : <section className="card"><h2>Set up the application first.</h2><p className="muted">See the README for database and authentication configuration.</p></section>}
   </main>;
 }

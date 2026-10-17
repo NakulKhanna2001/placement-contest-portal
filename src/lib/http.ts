@@ -15,6 +15,11 @@ export async function currentParticipant() {
   if (user.leetcodeVerified !== true) throw new HttpError(403, "Verify your LeetCode profile on the Account page before entering contests.");
   return user;
 }
+export async function currentContestViewer() {
+  const user = await currentUser();
+  if (user.role !== "admin" && user.leetcodeVerified !== true) throw new HttpError(403, "Verify your LeetCode profile on the Account page before entering contests.");
+  return user;
+}
 export async function readBody<T>(req: Request, schema: z.ZodType<T>): Promise<T> {
   if (req.headers.get("origin") && req.headers.get("origin") !== new URL(req.url).origin) throw new HttpError(403, "Invalid request origin.");
   if (!req.headers.get("content-type")?.startsWith("application/json")) throw new HttpError(415, "Expected application/json.");

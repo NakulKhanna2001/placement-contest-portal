@@ -8,7 +8,7 @@ export function VerificationGate({ action }: { action: ReactNode }) {
       <h2>One quick step before you join</h2>
       <p>Complete the verification steps on your Account page. Once verified, you can open contest problems, view standings, and take part.</p>
       {action}
-      <p className="card-footnote">Finish verification before a contest starts to submit solves in that contest.</p>
+      <p className="card-footnote">You can verify and join during a live contest. The same problem windows and submission deadline apply.</p>
     </section>
   </main>;
 }

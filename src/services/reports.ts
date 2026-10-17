@@ -4,10 +4,11 @@ import type { Db } from "@/db";
 import { batches, contests, disqualifications, problems, reports, solves, users } from "@/db/schema";
 import { id, proofUrl, text } from "@/lib/validation";
 import { requireAdmin, writeAudit } from "./audit";
+import { solveDeadline } from "@/lib/contest-timing";
 export type ReportResult = { ok: true; reportId: number } | { ok: false; reason: "contest_not_ended" | "self_report" | "no_proof" | "duplicate" | "invalid_target" };
 export async function fileReport(db: Db, input: { contestId: number; reporterId: number; targetUserId: number; problemId: number | null; proofUrl: string; description: string; now: Date }): Promise<ReportResult> {
   const [contest] = await db.select().from(contests).where(eq(contests.id, input.contestId));
-  if (!contest || contest.status === "draft" || input.now <= contest.endsAt) return { ok: false, reason: "contest_not_ended" };
+  if (!contest || contest.status === "draft" || input.now <= solveDeadline(contest)) return { ok: false, reason: "contest_not_ended" };
   if (input.reporterId === input.targetUserId) return { ok: false, reason: "self_report" };
   if (!proofUrl.safeParse(input.proofUrl).success || !text.safeParse(input.description).success) return { ok: false, reason: "no_proof" };
   const targetSolves = await db.select({ problemId: solves.problemId }).from(solves).innerJoin(problems, eq(solves.problemId, problems.id)).innerJoin(batches, eq(problems.batchId, batches.id)).where(and(eq(batches.contestId, contest.id), eq(solves.userId, input.targetUserId)));

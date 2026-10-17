@@ -36,7 +36,7 @@ it("runs an isolated one-hour demo with correct bonus/base scores, archived link
   ]);
   expect(await checkSubmission(db, client, { userId: a.id, link: link("101"), now: at(66) })).toMatchObject({ reason: "already_solved" });
   expect(await checkSubmission(db, client, { userId: b.id, link: link("102"), now: at(67) })).toMatchObject({ reason: "not_found" });
-  expect(await checkSubmission(db, fake([{ id: "302", slug: "two-sum", acceptedAt: at(61) }]), { userId: c.id, link: link("302"), now: at(62) })).toMatchObject({ reason: "outside_window" });
+  expect(await checkSubmission(db, fake([{ id: "302", slug: "two-sum", acceptedAt: at(61 + 1 / 60) }]), { userId: c.id, link: link("302"), now: at(62) })).toMatchObject({ reason: "outside_window" });
   expect(await checkSubmission(db, client, { userId: a.id, link: link("101"), now: at(71) })).toMatchObject({ reason: "no_contest" });
   expect((await getLeaderboard(db, contestId)).map(r => r.points)).toEqual([18, 15, 9.5]);
 });

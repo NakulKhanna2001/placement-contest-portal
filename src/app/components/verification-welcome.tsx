@@ -40,7 +40,7 @@ function WelcomeDialog({ userId }: { userId: number }) {
     </div>
     <div className="welcome-dialog-body">
       <p id={descriptionId}><strong>Verify your LeetCode profile to unlock contest access.</strong> This one-time step confirms the account you’ll solve with.</p>
-      <p className="muted">Finish before a contest starts. Follow the steps below; you can reopen this guide on your Account page anytime.</p>
+      <p className="muted">You can verify and join even during a live contest. Follow the steps below; you can reopen this guide on your Account page anytime.</p>
       <VerificationGuide />
     </div>
     <div className="welcome-dialog-footer">

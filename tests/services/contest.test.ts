@@ -1,11 +1,36 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
+import { eq } from "drizzle-orm";
 import { closeTestDbs } from "@/db/test-db";
-import { contests, solves, seenSubmissions, checkLog } from "@/db/schema";
+import { contests, solves, seenSubmissions, checkLog, users } from "@/db/schema";
 import { createContest, findContestForSubmission, findLiveContest, visibleProblems } from "@/services/contest";
 import { checkSubmission } from "@/services/submission-checker";
+import { beginLink, confirmLink } from "@/services/verification";
+import { getLeaderboard } from "@/services/leaderboard";
 import { setup, at, start, batch, fake, link } from "../helpers";
 afterEach(closeTestDbs);
 describe("contest and verification", () => {
+  it("lets students verify mid-contest and submit without changing existing participants' solves", async () => {
+    const { db, contestId, student } = await setup();
+    const check = (userId: number, id: string, slug: string, accepted: number, now: number) => checkSubmission(db, fake([{ id, slug, acceptedAt: at(accepted) }]), { userId, link: link(id), now: at(now) });
+    expect(await check(student.id, "101", "easy-1-a", 10, 11)).toMatchObject({ ok: true, points: 3 });
+    expect(await check(student.id, "102", "hard-1", 20, 21)).toMatchObject({ ok: true, points: 12 });
+    const previousSolves = await db.select().from(solves).where(eq(solves.userId, student.id));
+    const previousStanding = (await getLeaderboard(db, contestId)).find(row => row.userId === student.id);
+
+    const [late] = await db.insert(users).values({ email: "late@example.test", name: "Late joiner" }).returning();
+    const token = await beginLink(db, late.id);
+    expect(await check(late.id, "201", "easy-1-b", 30, 31)).toMatchObject({ reason: "not_linked" });
+    expect(await confirmLink(db, { ...fake(), profileBio: async () => token }, late.id, "late-joiner", at(35), { campus: "pune", studyYear: 1 })).toMatchObject({ ok: true });
+    expect(await check(late.id, "202", "easy-1-b", 40, 41)).toMatchObject({ ok: true, points: 2, multiplier: 1 });
+    expect(await check(late.id, "203", "hard-2", 65, 66)).toMatchObject({ ok: true, points: 18, multiplier: 1.5 });
+    expect(await check(late.id, "204", "hard-1", 61, 67)).toMatchObject({ ok: true, points: 12 });
+    expect(await db.select().from(solves).where(eq(solves.userId, student.id))).toEqual(previousSolves);
+    expect((await getLeaderboard(db, contestId)).find(row => row.userId === student.id)).toEqual({ ...previousStanding, rank: 2 });
+    expect(await check(student.id, "103", "easy-2-a", 70, 71)).toMatchObject({ ok: true, points: 3 });
+    expect((await getLeaderboard(db, contestId)).find(row => row.userId === student.id)).toMatchObject({ points: 18 });
+    expect(await check(late.id, "205", "easy-3-a", 130, 190)).toMatchObject({ ok: true, points: 3 });
+    expect(await check(late.id, "206", "easy-3-b", 131, 191)).toMatchObject({ reason: "no_contest" });
+  });
   it("validates batch composition, duplicates, overlap and server-side release", async () => {
     const { db, contestId } = await setup();
     expect(await visibleProblems(db, contestId, at(-1))).toHaveLength(0);
@@ -59,7 +84,7 @@ describe("contest and verification", () => {
     const { db, student, admin } = await setup();
     const check = (id: string, slug: string, accepted: number, now: number) => checkSubmission(db, fake([{ id, slug, acceptedAt: at(accepted) }]), { userId: student.id, link: link(id), now: at(now) });
     expect(await check("1", "hard-2", 10, 12)).toMatchObject({ reason: "outside_window" });
-    expect(await check("2", "hard-1", 61, 62)).toMatchObject({ reason: "outside_window" });
+    expect(await check("2", "hard-1", -1, 62)).toMatchObject({ reason: "outside_window" });
     expect(await check("3", "hard-2", 70, 63)).toMatchObject({ reason: "outside_window" });
     expect(await check("4", "other", 10, 64)).toMatchObject({ reason: "not_contest_problem" });
     expect(await checkSubmission(db, fake(), { userId: student.id, link: link("999"), now: at(65) })).toMatchObject({ reason: "not_found" });

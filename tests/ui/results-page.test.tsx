@@ -35,7 +35,7 @@ it("shows all finished-contest problems even when no participant has a solve", a
   expect(html).toContain("No solves yet");
 });
 
-it.each([-1, 30, 180])("keeps future/live results gated at minute %i and points users to the contest", async minute => {
+it.each([-1, 30, 180, 181])("keeps future/live results gated at minute %i and points users to the contest", async minute => {
   const props = await fixture();
   vi.setSystemTime(at(minute));
   const html = renderToStaticMarkup(await Results(props));

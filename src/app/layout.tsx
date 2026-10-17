@@ -33,7 +33,7 @@ async function AccountControls() {
 
 async function VerificationOnboarding() {
   const session = await getSession();
-  return <VerificationWelcome member={session?.user.id ? { id: session.user.id, leetcodeVerified: session.user.leetcodeVerified } : null} />;
+  return <VerificationWelcome member={session?.user.id && session.user.role !== "admin" ? { id: session.user.id, leetcodeVerified: session.user.leetcodeVerified } : null} />;
 }
 
 async function StudentProfileNotice() {

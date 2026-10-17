@@ -22,6 +22,14 @@ describe("contest rules", () => {
     expect(score(3601).ok).toBe(false);
     expect(score(NaN).ok).toBe(false);
   });
+  it("separates a personal early opening from the original bonus cutoff", () => {
+    const early = (s: number) => scoreSolve({ basePoints: 5, opensAt: at(600), unlockAt: at(3600), closesAt: at(7200), acceptedAt: at(s), bonusWindowSeconds: 900, bonusMultiplier: 1.5 });
+    expect(early(599)).toMatchObject({ reason: "before_unlock" });
+    for (const second of [600, 2000, 3600, 4500]) expect(early(second)).toMatchObject({ ok: true, points: 7.5, multiplier: 1.5 });
+    expect(early(4501)).toMatchObject({ ok: true, points: 5, multiplier: 1 });
+    expect(early(7200).ok).toBe(true);
+    expect(early(7201)).toMatchObject({ reason: "after_close" });
+  });
   it("ranks by points, hards, then last solve; ties share rank and DQs disappear", () => {
     const rows = rankLeaderboard([
       { userId: 1, points: 12, difficulty: "hard", acceptedAt: at(50) },

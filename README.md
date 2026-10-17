@@ -12,12 +12,12 @@ The interface uses a persistent workspace, responsive navigation, and page-speci
 ## How a contest works
 
 - **Open to everyone**, once a week (Saturday), **3 hours** long.
-- **3 batches** unlock at 0:00, 1:00 and 2:00. Each batch has **2 Easy, 1 Medium and 1 Hard** problem and stays open for **1 hour**.
+- **3 batches** are scheduled at 0:00, 1:00 and 2:00. Each batch has **2 Easy, 1 Medium and 1 Hard** problem. Verify all four solves in a batch to unlock the next batch early for yourself; everyone else gets access at the scheduled start. **All unlocked problems remain scoreable through 3 hours 1 minute**, inclusive. Earlier batches do not close after one hour.
 - **Points:** Easy 2, Medium 5, Hard 12. The Hard is worth more than the rest of its batch combined, so students are pushed to aim for it.
-- **Early-solve multiplier:** a solve accepted within the first **15 minutes** of its batch earns **1.5×** (configurable per contest).
+- **Early-solve multiplier:** an eligible solve accepted through the batch’s **original scheduled start + 15 minutes** earns **1.5×** (configurable per contest), including early-access solves. Unlocking early does not move the cutoff.
 - **Ranking:** total points, then number of Hards solved, then earliest last solve.
-- **Submitting:** the student pastes a LeetCode submission link. The portal reads only the submission ID from it, finds that ID in the student's public LeetCode accepted list, and uses LeetCode's own timestamp. Links can be submitted until 10 minutes after the contest ends, but the solve must have been accepted inside its own batch window.
-- **Cheating:** after the contest, anyone can report a user with proof. Admins uphold (revoke solves or disqualify) or dismiss. There is no automated detection.
+- **Submitting:** the student pastes a LeetCode submission link. The portal reads only the submission ID from it, finds that ID in the student's public LeetCode accepted list, and uses LeetCode's own timestamp. A solve must be accepted between the student’s eligible batch opening and **scheduled contest end + 1 minute**. Later solves earn base points after their batch’s original bonus cutoff. Links can still be pasted through the configured grace (default 10 minutes after scheduled end; effective minimum 1 minute). Early access requires four verified valid solves in the preceding batch; its last required acceptance is the earliest eligible time for the next batch.
+- **Cheating:** after the final scoring minute, verified participants can report a user with proof. Admins uphold (revoke solves or disqualify) or dismiss. There is no automated detection.
 - **Admin grants:** if LeetCode is down or a student has proof, an admin can grant a solve manually. Every admin action is audited.
 
 | Difficulty | Base | Early (≤ 15 min) |
@@ -73,6 +73,7 @@ Open **http://localhost:3000**. This workspace now has a private `.env.local` co
 | `ALLOWED_EMAIL_DOMAIN` | Optional exact domain, e.g. `college.edu`, used when public sign-in is disabled |
 | `ALLOWED_EMAILS` | Optional exact email allowlist, used when public sign-in is disabled |
 | `ADMIN_EMAILS` | Comma-separated administrator emails that also satisfy the access policy |
+| `ADDITIONAL_ADMIN_EMAILS` | Optional additional exact administrator emails; merged with `ADMIN_EMAILS` at Google sign-in so an existing write-only list can be preserved |
 | `SUPPORT_EMAIL` | Public contact address shown on the privacy and participation pages |
 
 Generate secrets with `openssl rand -base64 32`. No `.env*` files belong in Git.
@@ -85,13 +86,15 @@ npm run dev
 ```
 
 1. Sign in with a verified Google account. New users become students unless explicitly listed in `ADMIN_EMAILS`.
-2. Visit `/account`, put the verification code in **ReadMe** under LeetCode profile settings, then enter your **LeetCode username, NST campus, and year of study** to confirm ownership. All three are mandatory; Verify account stays disabled until they are filled. Verification is required to open contest problems or standings; complete it **before the contest starts** to submit solves.
+2. Visit `/account`, put the verification code in **ReadMe** under LeetCode profile settings, then enter your **LeetCode username, NST campus, and year of study** to confirm ownership. All three are mandatory; Verify account stays disabled until they are filled. Verification is required to open contest problems or standings; you can complete it during a live contest and participate immediately. The same problem windows and submission deadline apply.
 3. As an administrator, visit `/admin` to schedule or draft a contest, manage grants, review reports, and inspect the audit trail.
 4. Students use `/` during a contest and `/results` afterward.
 
 **Verification help:** Unverified members see a welcome popup with a five-step screenshot guide. Choose **Start verification** to open the Account form, generate and copy your code, then follow **Edit Profile → ReadMe → Save** on LeetCode. The same guide can be expanded anytime while linking on Account. Closing the popup is remembered per member for the browser tab; it does not unlock contests. Verified members do not see the popup.
 
 **Campus/year standings:** Choose **Sonepat, Bengaluru, Pune, or Hyderabad**, and **1st–4th year**. Both details appear beneath student names on live and completed-contest leaderboards. Filter by campus, year, or both to see ranks within that group; overall ranks remain visible for comparison, and ties keep the existing scoring rules. Filters use current self-reported profile details and stay selected during live updates. Previously verified students receive an Account-page completion prompt; their verification and scores are preserved, and they appear in overall standings until they fill in their details. Campus/year can be corrected on Account without relinking LeetCode.
+
+**Detailed leaderboard:** Open **Leaderboard** in the main navigation, or **View full leaderboard and solve times** from a contest/results page. `/leaderboard?contestId=ID` shows a Codeforces-style student/problem grid for that contest; `/leaderboard` defaults to the active contest, then the latest past contest or next upcoming one. Each counted solve shows points, bonus multiplier, elapsed time since contest start, and LeetCode acceptance time in IST; the tooltip gives portal verification time. Campus/year filters and 12-second live refresh remain available. Locked problem slots show scores but hide names and links until the viewing student unlocks the batch. Revoked solves and disqualified participants do not count. This is a read-only view of existing data, with no migration or rescoring.
 
 Completed results include the full problem set for verified participants to practice, even when no solves were submitted. All displayed times, tooltips, scheduling inputs, and manual-grant inputs use **India Standard Time (IST)**. See [demo verification](docs/demo-verification.md) for the live demo and isolated scoring checks.
 
@@ -100,6 +103,12 @@ Completed results include the full problem set for verified participants to prac
 **Problem links:** When creating or editing contests, paste a full LeetCode problem URL into **LeetCode problem URL or slug**. For example, `https://leetcode.com/problems/two-sum/description/` becomes `two-sum` automatically. Links with query parameters and LeetCode contest problem links also work; plain slugs are still accepted.
 
 **Adding administrators:** Update `ADMIN_EMAILS` in Vercel with comma-separated email addresses, preserving the existing owner address, then redeploy. Those accounts receive admin access on their next Google sign-in. Everyone else remains a student. Never use a domain or wildcard in this list.
+
+When the original admin list is a write-only secret, add addresses through `ADDITIONAL_ADMIN_EMAILS` instead of replacing it. Both lists grant the same admin role, including on the first sign-in of a not-yet-registered account. To remove an administrator, remove the address from both lists.
+
+**Admin problem preview:** Admins can inspect every batch on the live contest and detailed leaderboard without LeetCode verification. In **Admin → contest → View all contest problems**, they can also inspect future and draft contests. Preview access does not grant early scoring eligibility; admins submitting solves still need a verified LeetCode profile and must follow the same personal opening, bonus and closing-time rules as students.
+
+**Student submission inspection:** **Admin → Student submissions** opens `/admin/submissions`. Filter saved solve records by contest, student or valid/revoked status. Records include student identity, problem, counted LeetCode submission ID/link, acceptance and portal verification times in IST, points, bonus, manual/automatic source, evidence links and disqualification status. Revoked and disqualified records remain visible for review. The page is admin-only, available during live contests, paginated at 50 records and refreshed every 30 seconds. It is read-only; use the existing admin revoke/grant tools for changes. LeetCode may restrict submission pages to the original account; source code is not stored by the portal.
 
 `vercel.json` uses the Next.js preset and the `iad1` region near the Neon database. It defines **zero cron jobs** and works on Vercel Hobby. See the [runbook](docs/runbook.md) for deployment details.
 
